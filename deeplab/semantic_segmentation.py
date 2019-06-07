@@ -7,20 +7,14 @@
 
 from __future__ import absolute_import, division, print_function
 
-import click
 import cv2
-import matplotlib
-import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import yaml
 from addict import Dict
 
 from deeplab.libs.models import *
-from deeplab.libs.utils import DenseCRF
+
 
 
 def get_device(cuda):

@@ -53,7 +53,8 @@ if __name__ == "__main__":
     deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml', './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth')
     maskrcnn = Instance_segmentation()
 
-    images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
+    #images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
+    images = ['../COCO/images/train2017/000000000009.jpg','../COCO/images/train2017/000000000025.jpg','../COCO/images/train2017/000000000030.jpg']
 
     for i,img_name in enumerate(images):
         img = mx.image.imread(img_name)

@@ -106,7 +106,6 @@ ENV/
 runs/
 .DS_Store
 exps/
-_*
 *.pdf
 *.gv
 .style.yapf

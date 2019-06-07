@@ -27,9 +27,9 @@ def get_device(cuda):
         print("(Deeplab) Device: CPU")
     return device
 
-from .demo import get_classtable
-from .demo import setup_postprocessor
-from .demo import preprocessing
+from deeplab.demo import get_classtable
+from deeplab.demo import setup_postprocessor
+from deeplab.demo import preprocessing
 
 
 class Semantic_segmentation:

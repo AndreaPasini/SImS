@@ -56,10 +56,23 @@ if __name__ == "__main__":
     #images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
     images = ['../COCO/images/train2017/000000000009.jpg','../COCO/images/train2017/000000000025.jpg','../COCO/images/train2017/000000000030.jpg']
 
+    import time
+
+
+    sum =0
+    count=0
     for i,img_name in enumerate(images):
+        start = time.time()
+
         img = mx.image.imread(img_name)
 
         test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i))
         test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i))
         print("Done, %d" % i)
 
+        end = time.time()
+        delta=end - start
+        sum+=delta
+        count+=1
+        print("time: " + str(delta))
+    print("average per image: " + str(1.0*sum/count)+" s")

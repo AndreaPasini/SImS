@@ -19,8 +19,8 @@ import torch.nn.functional as F
 import yaml
 from addict import Dict
 
-from .libs.models import *
-from .libs.utils import DenseCRF
+from deeplab.libs.models import *
+from deeplab.libs.utils import DenseCRF
 
 
 def get_device(cuda):

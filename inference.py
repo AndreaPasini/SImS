@@ -94,7 +94,7 @@ def run_threads():
     jobs = []
     for i,img in enumerate(images):
         f = FuncThread(run_model, img, i)
-        thread = threading.Thread(target=f)
+        thread = threading.Thread(target=f.run)
         jobs.append(thread)
 
     # Start the threads (i.e. calculate the random number lists)

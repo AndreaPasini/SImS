@@ -44,6 +44,34 @@ def test_deeplab(img, outfile, deeplab):
     labelmap = deeplab.predict(img)
     deeplab.visualize(img,labelmap,outfile)
 
+def run_model(img_name, i):
+    # output folder
+    outdir = 'outdir'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    from deeplab.semantic_segmentation import Semantic_segmentation
+    from maskrcnn.instance_segmentation import Instance_segmentation
+    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
+                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth')
+    maskrcnn = Instance_segmentation()
+
+    # images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
+    images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
+              '../COCO/images/train2017/000000000030.jpg']
+
+    import time
+
+    start = time.time()
+
+    img = mx.image.imread(img_name)
+
+    test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
+    test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
+    print("Done, %d" % i)
+
+    end = time.time()
+    delta = end - start
+    print("time: " + str(delta))
 
 def run_threads():
     images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
@@ -101,32 +129,4 @@ if __name__ == "__main__":
     run_threads()
 
 
-    def run_model(img_name, i):
-        # output folder
-        outdir = 'outdir'
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
-        from deeplab.semantic_segmentation import Semantic_segmentation
-        from maskrcnn.instance_segmentation import Instance_segmentation
-        deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
-                                        './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth')
-        maskrcnn = Instance_segmentation()
-
-        # images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
-        images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
-                  '../COCO/images/train2017/000000000030.jpg']
-
-        import time
-
-        start = time.time()
-
-        img = mx.image.imread(img_name)
-
-        test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
-        test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
-        print("Done, %d" % i)
-
-        end = time.time()
-        delta = end - start
-        print("time: " + str(delta))
 

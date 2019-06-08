@@ -73,13 +73,28 @@ def run_model(img_name, i):
     delta = end - start
     print("time: " + str(delta))
 
+
+class FuncThread(threading.Thread):
+    def __init__(self, target, *args):
+        self._target = target
+        self._args = args
+        threading.Thread.__init__(self)
+
+    def run(self):
+        self._target(*self._args)
+
+
+
+
+
 def run_threads():
     images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
               '../COCO/images/train2017/000000000030.jpg']
 
     jobs = []
     for i,img in enumerate(images):
-        thread = threading.Thread(target=run_model(img, i))
+        f = FuncThread(run_model, img, i)
+        thread = threading.Thread(target=f)
         jobs.append(thread)
 
     # Start the threads (i.e. calculate the random number lists)
@@ -126,7 +141,15 @@ if __name__ == "__main__":
     #     count+=1
     #     print("time: " + str(delta))
     # print("average per image: " + str(1.0*sum/count)+" s")
+
+    import time
+
+    start = time.time()
     run_threads()
+
+    end = time.time()
+    delta = end - start
+    print("time: " + str(delta))
 
 
 

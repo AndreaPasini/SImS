@@ -1,6 +1,6 @@
 import os
 
-os.environ['MXNET_EXEC_ENABLE_INPLACE'] = 4
+os.environ['MXNET_EXEC_ENABLE_INPLACE'] = '4'
 
 from tqdm import tqdm
 import numpy as np

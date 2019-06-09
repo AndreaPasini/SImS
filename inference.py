@@ -1,6 +1,5 @@
 import os
 
-os.environ['MXNET_EXEC_ENABLE_INPLACE'] = '4'
 
 from tqdm import tqdm
 import numpy as np
@@ -66,7 +65,9 @@ def run_model(img_name, i):
 
     img = mx.image.imread(img_name)
 
+    print("start mxnet (%d)"% (i))
     test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
+    print("end mxnet (%d), start tensorflow"% (i))
     test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
     print("Done, %d" % i)
 

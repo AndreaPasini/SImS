@@ -44,7 +44,7 @@ def test_deeplab(img, outfile, deeplab):
     labelmap = deeplab.predict(img)
     deeplab.visualize(img,labelmap,outfile)
 
-def run_model(img_name, i):
+def run_model(img_names, i):
     # output folder
     outdir = 'outdir'
     if not os.path.exists(outdir):
@@ -56,24 +56,25 @@ def run_model(img_name, i):
     maskrcnn = Instance_segmentation()
 
     # images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
-    images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
-              '../COCO/images/train2017/000000000030.jpg']
+    # images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
+    #           '../COCO/images/train2017/000000000030.jpg']
 
     import time
 
     start = time.time()
 
-    img = mx.image.imread(img_name)
+    for img_name in img_names:
+        img = mx.image.imread(img_name)
 
-    print("start mxnet (%d)"% (i))
-    test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
-    print("end mxnet (%d), start tensorflow"% (i))
-    test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
-    print("Done, %d" % i)
-
-    end = time.time()
-    delta = end - start
-    print("time: " + str(delta))
+        print("start mxnet (%d)"% (i))
+        test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
+        print("end mxnet (%d), start tensorflow"% (i))
+        test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
+        print("Done, %d" % i)
+        end = time.time()
+        delta = end - start
+        print("time (%d): %d" % (i,delta))
+        i+=1
 
 
 class FuncThread(threading.Thread):
@@ -98,8 +99,11 @@ class FuncThread(threading.Thread):
 
 
 def run_threads():
-    images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
-              '../COCO/images/train2017/000000000030.jpg']
+    from os import listdir
+    files = listdir('../COCO/images/train2017/')
+
+    # images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
+    #           '../COCO/images/train2017/000000000030.jpg']
 
     # jobs = []
     # for i,img in enumerate(images):
@@ -114,10 +118,12 @@ def run_threads():
     # for j in jobs:
     #     j.join()
 
-    for i, img in enumerate(images):
+    #for i, img in enumerate(images):
+    for i in range(0,4):
         newpid = os.fork()
         if newpid == 0:
-            run_model(img,i)
+            print("Fork process: %d to %d" %(2*i,2*i+2))
+            run_model(files[2*i:2*i+2],2*i)
             break
 
 

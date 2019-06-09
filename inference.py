@@ -89,23 +89,40 @@ class FuncThread(threading.Thread):
 
 
 
+
+
+
+
+
+
+
+
 def run_threads():
     images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
               '../COCO/images/train2017/000000000030.jpg']
 
-    jobs = []
-    for i,img in enumerate(images):
-        t = FuncThread(run_model, img, i)
-        #thread = threading.Thread(target=f.run)
-        jobs.append(t)
+    # jobs = []
+    # for i,img in enumerate(images):
+    #     t = FuncThread(run_model, img, i)
+    #     jobs.append(t)
+    #
+    # # Start the threads (i.e. calculate the random number lists)
+    # for j in jobs:
+    #     j.start()
+    #
+    # # Ensure all of the threads have finished
+    # for j in jobs:
+    #     j.join()
 
-    # Start the threads (i.e. calculate the random number lists)
-    for j in jobs:
-        j.start()
+    for i, img in enumerate(images):
+        newpid = os.fork()
+        if newpid == 0:
+            run_model(i,img)
+            break
 
-    # Ensure all of the threads have finished
-    for j in jobs:
-        j.join()
+
+
+
 
 if __name__ == "__main__":
     # #Execute inference, semantic segmentation on coco

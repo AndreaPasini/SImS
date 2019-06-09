@@ -117,7 +117,7 @@ def run_threads():
     for i, img in enumerate(images):
         newpid = os.fork()
         if newpid == 0:
-            run_model(i,img)
+            run_model(img,i)
             break
 
 

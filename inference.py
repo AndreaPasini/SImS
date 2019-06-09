@@ -1,5 +1,6 @@
 import os
 
+os.environ['MXNET_EXEC_ENABLE_INPLACE'] = 4
 
 from tqdm import tqdm
 import numpy as np
@@ -141,6 +142,9 @@ if __name__ == "__main__":
     #     count+=1
     #     print("time: " + str(delta))
     # print("average per image: " + str(1.0*sum/count)+" s")
+
+
+
 
     import time
 

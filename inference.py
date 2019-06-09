@@ -44,7 +44,7 @@ def test_deeplab(img, outfile, deeplab):
     labelmap = deeplab.predict(img)
     deeplab.visualize(img,labelmap,outfile)
 
-def run_model(img_names, i):
+def run_model(img_names, i, path):
     # output folder
     outdir = 'outdir'
     if not os.path.exists(outdir):
@@ -64,7 +64,7 @@ def run_model(img_names, i):
     start = time.time()
 
     for img_name in img_names:
-        img = mx.image.imread(img_name)
+        img = mx.image.imread(path + img_name)
 
         print("start mxnet (%d)"% (i))
         test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
@@ -123,7 +123,7 @@ def run_threads():
         newpid = os.fork()
         if newpid == 0:
             print("Fork process: %d to %d" %(2*i,2*i+2))
-            run_model(files[2*i:2*i+2],2*i)
+            run_model(files[2*i:2*i+2],2*i, '../COCO/images/train2017/')
             break
 
 

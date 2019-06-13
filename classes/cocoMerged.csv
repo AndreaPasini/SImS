@@ -1,0 +1,20 @@
+tree-merged:branch,tree,bush,leaves
+fence-merged:cage,fence,railing
+ceiling-merged:ceiling-tile,ceiling-other
+sky-other-merged:clouds,sky-other,fog
+cabinet-merged:cupboard,cabinet
+table-merged:desk-stuff,table,desk
+floor-other-merged:floor-marble,floor-other,floor-tile
+pavement-merged:floor-stone,pavement
+mountain-merged:hill,mountain
+grass-merged: moss,grass,straw
+dirt-merged:mud,dirt
+paper-merged:napkin,paper
+food-other-merged:salad,vegetable,food-other
+building-other-merged:skyscraper,building-other
+rock-merged:stone,rock
+wall-other-merged:wall-other,wall-concrete,wall-panel
+rug-merged:mat,rug,carpet
+door-stuff:door
+window-other:window
+mirror-stuff:mirror

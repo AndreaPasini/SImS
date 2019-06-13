@@ -39,12 +39,24 @@ def test_maskrcnn(img, outfile, maskrcnn):
     ids, scores, bboxes, masks = maskrcnn.predict(img)
     maskrcnn.visualize(img,  ids, scores, bboxes, masks, outfile)
 
+def save_json_probs(outfile, probs):
+    jsonout = []
+    for probs_i in probs:
+        strprobs_i = {}
+        for k, v in probs_i.items():
+            floatstr = '%.3f'%v
+            if (floatstr!='0.000'):
+                strprobs_i[k] = floatstr
+        jsonout.append(strprobs_i)
+    with open(outfile, 'w') as f:
+        json.dump(strprobs_i, f)
+
+
 def test_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[...,::-1]
     labelmaps, probs = deeplab.predict_topk(img, k=3)
 
-    with open(outfile+'_probs.json', 'w') as f:
-        json.dump(probs, f)
+    save_json_probs(outfile + '_probs.json', probs)
     print("saved:json")
 
     for i, labelmap in enumerate(labelmaps):

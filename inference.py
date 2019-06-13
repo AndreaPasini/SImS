@@ -41,10 +41,10 @@ def test_maskrcnn(img, outfile, maskrcnn):
 
 def test_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[...,::-1]
-    labelmap = deeplab.predict(img)
+    labelmaps, probs = deeplab.predict_topk(img, k=3)
 
-
-    deeplab.visualize(img,labelmap,outfile)
+    for i, labelmap in enumerate(labelmaps):
+        deeplab.visualize(img,labelmap,outfile+(('_%d.png')%i), probs[i])
 
 def run_model(img_names, i, path):
     # output folder
@@ -77,7 +77,7 @@ def run_model(img_names, i, path):
         print("start mxnet (%d)"% (i))
         #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
         print("end mxnet (%d), start tensorflow"% (i))
-        test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i), deeplab)
+        test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
         print("Done, %d" % i)
         end = time.time()
         delta = end - start

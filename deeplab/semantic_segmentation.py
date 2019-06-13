@@ -167,6 +167,45 @@ class Semantic_segmentation:
 
         return labelmapCOCO
 
+    def __inference_topk(self, model, image, k, raw_image=None, postprocessor=None):
+        """
+        Run inference on the specified image.
+        :return: k 2D matrices with labels (panoptic COCO ids) -> the matrices are sorted by
+                decreasing confidence on the top-k classes for each pixel
+                and a list of dictionaries (one for each k) with the average probabilities of the objects ([classid]->avgprob)
+        """
+        _, _, H, W = image.shape
+
+        # Image -> Probability map
+        logits = model(image)
+        logits = F.interpolate(logits, size=(H, W), mode="bilinear", align_corners=False)
+        probs = F.softmax(logits, dim=1)[0]
+        probs = probs.cpu().numpy()
+
+        # Refine the prob map with CRF
+        if postprocessor and raw_image is not None:
+            probs = postprocessor(raw_image, probs)
+
+
+
+        # Take top-k classes
+        labelmaps = probs.argsort(axis=0)[-k:][::-1]
+        labelmaps_objects=[]
+        for labelmap in labelmaps:
+            labelmap_objects = {}
+            unique_classes = np.unique(labelmap)
+            for class_id in unique_classes:
+                avgprob = np.average(probs[class_id][labelmap==class_id])
+                labelmap_objects[self.__deeplab_to_coco[class_id]]=avgprob
+            labelmaps_objects.append(labelmap_objects)
+
+        def f_deeplab_to_coco(c):
+            return self.__deeplab_to_coco[c]
+        fvectorized = np.vectorize(f_deeplab_to_coco)
+        #Convert to coco class ids:
+        labelmapsCOCO = fvectorized(labelmaps)
+
+        return labelmapsCOCO, labelmaps_objects
 
     def predict(self, image):
         """
@@ -184,8 +223,27 @@ class Semantic_segmentation:
         ## Resize to original image dimensions
         return cv2.resize(labelmap, (w,h), interpolation=cv2.INTER_NEAREST)
 
+    def predict_topk(self, image, k):
+        """
+        Inference from a single image.
+        :param image: must follow the format -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
+        :return: 2D matrices with labels (panoptic COCO ids). Matrices represent the top-k classes for each pixel. Matrices are sorted by decreasing confidence
+        """
 
-    def visualize(self, image, labelmap, outfile):
+        h,w,d = image.shape
+
+        # Inference
+        image, raw_image = preprocessing(image, self.__device, self.__CONFIG)   ## Resize to [h,w=513]
+        labelmaps, probs = self.__inference_topk(self.__model, image, k, raw_image, self.__postprocessor) #return labelmap
+
+        ## Resize to original image dimensions
+        res = []
+        for labelmap in labelmaps:
+            res.append(cv2.resize(labelmap, (w,h), interpolation=cv2.INTER_NEAREST))
+        return res, probs
+
+
+    def visualize(self, image, labelmap, outfile, probs):
 
         labels = np.unique(labelmap)
 
@@ -193,7 +251,7 @@ class Semantic_segmentation:
         rows = np.floor(np.sqrt(len(labels) + 1))
         cols = np.ceil((len(labels) + 1) / rows)
 
-        plt.figure()
+        plt.figure(figsize=[10,6])
         ax = plt.subplot(rows, cols, 1)
         ax.set_title("Input image")
         ax.imshow(image[:, :, ::-1])
@@ -202,7 +260,7 @@ class Semantic_segmentation:
         for i, label in enumerate(labels):
             mask = labelmap == label
             ax = plt.subplot(rows, cols, i + 2)
-            ax.set_title(self.__panoptic_classes[label])
+            ax.set_title(self.__panoptic_classes[label]+(" (%.2f)"%probs[label]))
             ax.imshow(image[..., ::-1])
             ax.imshow(mask.astype(np.float32), alpha=0.5)
             ax.axis("off")

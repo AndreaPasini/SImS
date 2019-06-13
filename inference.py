@@ -21,7 +21,7 @@ import threading
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import json
 
 '''
 
@@ -43,7 +43,12 @@ def test_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[...,::-1]
     labelmaps, probs = deeplab.predict_topk(img, k=3)
 
+    with open(outfile+'_probs.json', 'w') as f:
+        json.dump(probs, f)
+    print("saved:json")
+
     for i, labelmap in enumerate(labelmaps):
+        print("save: %d" % i)
         deeplab.visualize(img,labelmap,outfile+(('_%d.png')%i), probs[i])
 
 def run_model(img_names, i, path):

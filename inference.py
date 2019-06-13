@@ -93,7 +93,7 @@ def run_model(img_names, i, path):
 
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
-        img_name = img_name.split('0')[0]
+        img_name = img_name.split('.')[0]
         print("start mxnet (%d)"% (i))
         #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
         print("end mxnet (%d), start tensorflow"% (i))

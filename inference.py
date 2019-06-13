@@ -35,6 +35,8 @@ import json
 
 '''
 
+output_segmentation_path = '../COCO/output/segmentation'
+output_detection_path =  '../COCO/output/detection'
 
 def test_maskrcnn(img, outfile, maskrcnn):
     ids, scores, bboxes, masks = maskrcnn.predict(img)
@@ -46,11 +48,10 @@ def test_deeplab(img, outfile, deeplab):
     #Compute predictions
     labelmaps, probs = deeplab.predict_topk(img, k=3)
     #Save probabilities
-    deeplab.save_json_probs(probs, outfile + '_probs.json')
+    deeplab.save_json_probs(probs, outfile + '_prob.json')
 
     #Save result maps
     for i, labelmap in enumerate(labelmaps):
-        #deeplab.visualize(img,labelmap,outfile+(('_%d.png')%i), probs[i])
         Image.fromarray(labelmap.astype(np.uint8)).save(outfile+(('_%d.png')%i))
 
 def visualize_deeplab(img, outfile, deeplab):
@@ -66,9 +67,11 @@ def visualize_deeplab(img, outfile, deeplab):
 
 def run_model(img_names, i, path):
     # output folder
-    outdir = 'outdir'
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+
+    if not os.path.exists(output_segmentation_path):
+        os.makedirs(output_segmentation_path)
+    if not os.path.exists(output_detection_path):
+        os.makedirs(output_detection_path)
     from deeplab.semantic_segmentation import Semantic_segmentation
     from maskrcnn.instance_segmentation import Instance_segmentation
 
@@ -90,13 +93,13 @@ def run_model(img_names, i, path):
 
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
-
+        img_name = img_name.split('0')[0]
         print("start mxnet (%d)"% (i))
         #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
         print("end mxnet (%d), start tensorflow"% (i))
-        test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
+        test_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         print("Done, %d" % i)
-        visualize_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
+        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         end = time.time()
         delta = end - start
         print("time (%d): %d" % (i,delta))

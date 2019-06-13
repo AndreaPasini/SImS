@@ -56,7 +56,7 @@ def test_deeplab(img, outfile, deeplab):
 
 def visualize_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[..., ::-1]
-    probs = json.load(open(outfile + '_probs.json','r'))
+    probs = json.load(open(outfile + '_prob.json','r'))
 
     #Save result maps
     i=0

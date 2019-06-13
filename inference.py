@@ -49,7 +49,7 @@ def save_json_probs(outfile, probs):
                 strprobs_i[k] = floatstr
         jsonout.append(strprobs_i)
     with open(outfile, 'w') as f:
-        json.dump(strprobs_i, f)
+        json.dump(jsonout, f)
 
 
 def test_deeplab(img, outfile, deeplab):
@@ -76,8 +76,7 @@ def run_model(img_names, i, path):
     deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
                                     './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
                                     './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
-    # deeplab.build_class_file('./classes/cocoStuff.csv', './classes/cocoThing.csv', './classes/cocoMerged.csv', './classes/deeplabToCoco.csv',
-    #  './classes/panoptic.csv')
+    #deeplab.build_class_file('./classes/cocoStuff.csv', './classes/cocoThing.csv', './classes/cocoMerged.csv', './classes/deeplabToCoco.csv','./classes/panoptic.csv')
     #maskrcnn = Instance_segmentation()
 
     # images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']

@@ -57,12 +57,23 @@ class Semantic_segmentation:
         """
         """ ('./classes/cocoStuff.csv','./classes/cocoThing.csv','./classes/cocoMerged.csv','./classes/deeplabToCoco.csv','./classes/panoptic.csv') """
 
+        coco_panoptic = {}
+
+        # read coco thing classes and their ids
+        coco_thing_classes = {}
+        with open(coco_thing_classes_path) as f:
+            for line in f.readlines():
+                id, label = line.rstrip('\n').split(":")
+                coco_thing_classes[label] = id
+                coco_panoptic[label] = id
+
         # read coco stuff classes and their ids
         coco_stuff_classes = {}  #Map from class name to class id (COCO)
         with open(coco_stuff_classes_path) as f:
             for line in f.readlines():
                 id, label = line.rstrip('\n').split(":")
                 coco_stuff_classes[label] = id
+                coco_panoptic[label]=id
 
         # read merged classes (stuff)
         with open(coco_merged_path) as f:
@@ -71,14 +82,6 @@ class Semantic_segmentation:
                 merged_id = coco_stuff_classes[merged_label]
                 for label in labels.strip().split(','):
                     coco_stuff_classes[label] = merged_id
-
-        # read coco thing classes and their ids
-        coco_thing_classes = {}
-        with open(coco_thing_classes_path) as f:
-            for line in f.readlines():
-                id, label = line.rstrip('\n').split(":")
-                coco_thing_classes[label] = id
-
 
         # map deeplab classes to coco stuff
         deeplab_to_coco = {}
@@ -97,9 +100,7 @@ class Semantic_segmentation:
 
         #Save panoptic classes:
         with open(output_panoptic_path, 'w') as f:
-            for k, v in coco_thing_classes.items():
-                f.write('%s:%s\n' % (v, k))
-            for k, v in coco_stuff_classes.items():
+            for k, v in coco_panoptic.items():
                 f.write('%s:%s\n' % (v, k))
 
 

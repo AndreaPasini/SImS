@@ -94,7 +94,7 @@ def run_model(img_names, i, path):
         print("start mxnet (%d)"% (i))
         #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
         print("end mxnet (%d), start tensorflow"% (i))
-        #test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
+        test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
         print("Done, %d" % i)
         visualize_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
         end = time.time()

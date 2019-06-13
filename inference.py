@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import os
 
 
@@ -17,9 +20,7 @@ from gluoncv.data.transforms.presets.ssd import load_test
 from gluoncv.utils.viz import plot_bbox
 
 import threading
-
-import matplotlib
-matplotlib.use('Agg')
+import PIL.Image as Image
 import matplotlib.pyplot as plt
 import json
 
@@ -39,29 +40,29 @@ def test_maskrcnn(img, outfile, maskrcnn):
     ids, scores, bboxes, masks = maskrcnn.predict(img)
     maskrcnn.visualize(img,  ids, scores, bboxes, masks, outfile)
 
-def save_json_probs(outfile, probs):
-    jsonout = []
-    for probs_i in probs:
-        strprobs_i = {}
-        for k, v in probs_i.items():
-            floatstr = '%.3f'%v
-            if (floatstr!='0.000'):
-                strprobs_i[k] = floatstr
-        jsonout.append(strprobs_i)
-    with open(outfile, 'w') as f:
-        json.dump(jsonout, f)
-
 
 def test_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[...,::-1]
+    #Compute predictions
     labelmaps, probs = deeplab.predict_topk(img, k=3)
+    #Save probabilities
+    deeplab.save_json_probs(probs, outfile + '_probs.json')
 
-    save_json_probs(outfile + '_probs.json', probs)
-    print("saved:json")
-
+    #Save result maps
     for i, labelmap in enumerate(labelmaps):
-        print("save: %d" % i)
-        deeplab.visualize(img,labelmap,outfile+(('_%d.png')%i), probs[i])
+        #deeplab.visualize(img,labelmap,outfile+(('_%d.png')%i), probs[i])
+        Image.fromarray(labelmap.astype(np.uint8)).save(outfile+(('_%d.png')%i))
+
+def visualize_deeplab(img, outfile, deeplab):
+    img = img.asnumpy().astype('uint8')[..., ::-1]
+    probs = json.load(open(outfile + '_probs.json','r'))
+
+    #Save result maps
+    i=0
+    labelmap = np.array(Image.open(outfile + (('_%d.png') % i)), np.uint8)   #.labelmap.astype(np.uint8)).save()
+    deeplab.visualize(img,labelmap,outfile+(('_%d_vis.png')%i), probs[i])
+
+
 
 def run_model(img_names, i, path):
     # output folder
@@ -93,8 +94,9 @@ def run_model(img_names, i, path):
         print("start mxnet (%d)"% (i))
         #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
         print("end mxnet (%d), start tensorflow"% (i))
-        test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
+        #test_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
         print("Done, %d" % i)
+        visualize_deeplab(img, outdir + '/sem_segment_%d' % (i), deeplab)
         end = time.time()
         delta = end - start
         print("time (%d): %d" % (i,delta))
@@ -208,5 +210,5 @@ if __name__ == "__main__":
     delta = end - start
     print("time: " + str(delta))
 
-
+    quit()
 

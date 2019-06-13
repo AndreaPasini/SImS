@@ -11,6 +11,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import yaml
+import json
 from addict import Dict
 
 from deeplab.libs.models import *
@@ -243,6 +244,24 @@ class Semantic_segmentation:
             res.append(cv2.resize(labelmap, (w,h), interpolation=cv2.INTER_NEAREST))
         return res, probs
 
+    def save_json_probs(self, probs, output_path):
+        """
+        Save average probabilities of segmentation.
+        Format: [{d1},{d2},{d3}] -> the top-3 classes (according to probabilities). each dictionary contains [classId]->avgprob
+        :param probs: probabilities (output of predict_topk)
+        :param outfile: path to output file
+        :return:
+        """
+        jsonout = []
+        for probs_i in probs:
+            strprobs_i = {}
+            for k, v in probs_i.items():
+                floatstr = '%.3f' % v
+                if (floatstr != '0.000'):
+                    strprobs_i[k] = floatstr
+            jsonout.append(strprobs_i)
+        with open(output_path, 'w') as f:
+            json.dump(jsonout, f)
 
     def visualize(self, image, labelmap, outfile, probs):
 
@@ -261,7 +280,11 @@ class Semantic_segmentation:
         for i, label in enumerate(labels):
             mask = labelmap == label
             ax = plt.subplot(rows, cols, i + 2)
-            ax.set_title(self.__panoptic_classes[label]+(" (%.2f)"%probs[label]))
+            try:
+                p = float(probs[str(label)])
+                ax.set_title(self.__panoptic_classes[label]+(" (%.2f)"%p))
+            except:
+                ax.set_title(self.__panoptic_classes[label] + " (zero)")
             ax.imshow(image[..., ::-1])
             ax.imshow(mask.astype(np.float32), alpha=0.5)
             ax.axis("off")

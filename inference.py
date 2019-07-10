@@ -90,10 +90,10 @@ def run_model(img_names, i, path):
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         print("+ Run detection (%d)" % i)
-        run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        #run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         print("- End detection (%d)" % i)
         print("+ Run segmentation (%d)" % i)
-        run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        #run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         print("- End segmentation (%d)" % i)
         end = time.time()
         i+=1
@@ -105,10 +105,10 @@ def run_model(img_names, i, path):
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         print("Run detection (%d)" % i)
-        visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        #visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         print("End detection (%d)" % i)
         print("Start segmentation (%d)" % i)
-        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        #visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         print("End segmentation (%d)" % i)
         end = time.time()
         i += 1
@@ -149,13 +149,54 @@ def run_threads():
     parallel=True
 
     if parallel:
+        # files = listdir('../COCO/images/train2017/')
+        # for i in range(0,4):
+        #     newpid = os.fork()
+        #     if newpid == 0:
+        #         print("Fork process: %d to %d" %(2*i,2*i+2))
+        #         run_model(files[2*i:2*i+2],2*i, '../COCO/images/train2017/')
+        #         break
+
+
+
+        ############################
+
+        import time
+        import multiprocessing
+
+        # def basic_func(x):
+        #     if x == 0:
+        #         return 'zero'
+        #     elif x % 2 == 0:
+        #         return 'even'
+        #     else:
+        #         return 'odd'
+
+        # def multiprocessing_func(x):
+        #     y = x * x
+        #     time.sleep(2)
+        #     print('{} squared results in a/an {} number'.format(x, basic_func(y)))
+
+        starttime = time.time()
+        processes = []
         files = listdir('../COCO/images/train2017/')
-        for i in range(0,4):
-            newpid = os.fork()
-            if newpid == 0:
-                print("Fork process: %d to %d" %(2*i,2*i+2))
-                run_model(files[2*i:2*i+2],2*i, '../COCO/images/train2017/')
-                break
+        for i in range(0, 4):
+            p = multiprocessing.Process(target=run_model, args=(files[2*i:2*i+2],2*i, '../COCO/images/train2017/'))
+            processes.append(p)
+            p.start()
+
+        for process in processes:
+            process.join()
+
+        print('That took {} seconds'.format(time.time() - starttime))
+
+
+
+        ######################
+
+
+
+
     else:
         run_model(['3.jpg'], 0, '../COCO/images/')
 

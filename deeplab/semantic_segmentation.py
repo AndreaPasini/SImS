@@ -49,6 +49,43 @@ class Semantic_segmentation:
     __panoptic_classes = None       #id:label for coco panoptic classes
     __deeplab_to_coco = None        #deeplab to coco classes conversion (by id)
 
+
+    def __init__(self, config_path, model_path, deeplab_to_coco_path, panoptic_classes_path):
+        """
+        Initialize the semantic segmentation model (DeeplabV2). Trained on COCO STUFF dataset.
+        :param config_path: input configuration file
+        :param model_path: input model weights path
+        :param deeplab_to_coco_path: input csv with conversion between class ids
+        :param panoptic_classes_path: input csv with COCO panoptic classes
+        """
+
+        self.__CONFIG = Dict(yaml.safe_load(open(config_path)))  ####
+        self.__device = get_device(self.__cuda)  # true, enable if available
+        torch.set_grad_enabled(False)
+
+        self.__classes = get_classtable(self.__CONFIG)
+        self.__postprocessor = setup_postprocessor(self.__CONFIG) if self.__crf else None
+
+        self.__model = eval(self.__CONFIG.MODEL.NAME)(n_classes=self.__CONFIG.DATASET.N_CLASSES)
+        state_dict = torch.load(model_path, map_location=lambda storage, loc: storage)  ########
+        self.__model.load_state_dict(state_dict)
+        self.__model.eval()
+        self.__model.to(self.__device)
+
+        # Read deeplab to coco classes conversion
+        self.__deeplab_to_coco = {}
+        with open(deeplab_to_coco_path, 'r') as f:
+            for line in f.readlines():
+                deeplab_id, coco_id = line.rstrip('\n').split(":")
+                self.__deeplab_to_coco[int(deeplab_id)] = int(coco_id)
+
+        # Read COCO panoptic classes
+        self.__panoptic_classes = {}
+        with open(panoptic_classes_path) as f:
+            for line in f.readlines():
+                id, label = line.rstrip('\n').split(":")
+                self.__panoptic_classes[int(id)] = label
+
     def build_class_file(self, coco_stuff_classes_path, coco_thing_classes_path, coco_merged_path, output_conversion_path, output_panoptic_path):
         """
         Generates a file with the map between deeplab classes and COCO classes
@@ -103,45 +140,6 @@ class Semantic_segmentation:
         with open(output_panoptic_path, 'w') as f:
             for k, v in coco_panoptic.items():
                 f.write('%s:%s\n' % (v, k))
-
-
-    def __init__(self, config_path, model_path, deeplab_to_coco_path, panoptic_classes_path):
-        """
-        Initialize the semantic segmentation model (DeeplabV2). Trained on COCO STUFF dataset.
-        :param config_path: input configuration file
-        :param model_path: input model weights path
-        :param coco_stuff_classes_path: input csv with COCO stuff classes and ids
-        """
-
-        self.__CONFIG = Dict(yaml.safe_load(open(config_path)))  ####
-        self.__device = get_device(self.__cuda)  # true, enable if available
-        torch.set_grad_enabled(False)
-
-        self.__classes = get_classtable(self.__CONFIG)
-        self.__postprocessor = setup_postprocessor(self.__CONFIG) if self.__crf else None
-
-        self.__model = eval(self.__CONFIG.MODEL.NAME)(n_classes=self.__CONFIG.DATASET.N_CLASSES)
-        state_dict = torch.load(model_path, map_location=lambda storage, loc: storage)  ########
-        self.__model.load_state_dict(state_dict)
-        self.__model.eval()
-        self.__model.to(self.__device)
-
-        # Read deeplab to coco classes conversion
-        self.__deeplab_to_coco = {}
-        with open(deeplab_to_coco_path, 'r') as f:
-            for line in f.readlines():
-                deeplab_id, coco_id = line.rstrip('\n').split(":")
-                self.__deeplab_to_coco[int(deeplab_id)] = int(coco_id)
-
-        # Read COCO panoptic classes
-        self.__panoptic_classes = {}
-        with open(panoptic_classes_path) as f:
-            for line in f.readlines():
-                id, label = line.rstrip('\n').split(":")
-                self.__panoptic_classes[int(id)] = label
-
-        print("(Deeplab) Model:", self.__CONFIG.MODEL.NAME)
-
 
     def __inference(self, model, image, raw_image=None, postprocessor=None):
         """
@@ -229,7 +227,8 @@ class Semantic_segmentation:
         """
         Inference from a single image.
         :param image: must follow the format -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
-        :return: 2D matrices with labels (panoptic COCO ids). Matrices represent the top-k classes for each pixel. Matrices are sorted by decreasing confidence
+        :return: res: list of 2D matrices with labels (panoptic COCO ids). Matrices represent the top-k classes for each pixel. Matrices are sorted by decreasing confidence.
+        :return: probs: list of the average confidence of the pixels of each class
         """
 
         h,w,d = image.shape
@@ -246,7 +245,7 @@ class Semantic_segmentation:
 
     def save_json_probs(self, probs, output_path):
         """
-        Save average probabilities of segmentation.
+        Save average probabilities of segmentation (separately for each predicted class).
         Format: [{d1},{d2},{d3}] -> the top-3 classes (according to probabilities). each dictionary contains [classId]->avgprob
         :param probs: probabilities (output of predict_topk)
         :param outfile: path to output file
@@ -264,7 +263,13 @@ class Semantic_segmentation:
             json.dump(jsonout, f)
 
     def visualize(self, image, labelmap, outfile, probs):
-
+        """
+        Visualize segmentation
+        :param image: image where segmentation will be drawn
+        :param labelmap: labels, for each pixel
+        :param outfile: output png file
+        :param probs: class probabilities
+        """
         labels = np.unique(labelmap)
 
         # Show result for each class

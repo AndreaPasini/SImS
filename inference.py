@@ -1,9 +1,11 @@
+from itertools import groupby
+
 import matplotlib
 matplotlib.use('Agg')
 
 import os
 
-
+import time
 from tqdm import tqdm
 import numpy as np
 import argparse
@@ -38,19 +40,23 @@ import json
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
 
-def test_maskrcnn(img, outfile, maskrcnn):
+#Auxiliary functions for neural networks
+def run_maskrcnn(img, outfile, maskrcnn):
     ids, scores, bboxes, masks = maskrcnn.predict(img)
-    maskrcnn.visualize(img,  ids, scores, bboxes, masks, outfile)
+    maskrcnn.save_json_boxes(img, ids, scores, bboxes, masks, outfile + '_prob.json')
 
+def visualize_maskrcnn(img, outfile, maskrcnn):
+    data = json.load(open(outfile + '_prob.json','r'))
+    maskrcnn.visualize(img, data, outfile)
 
-def test_deeplab(img, outfile, deeplab):
+def run_deeplab(img, outfile, deeplab):
     img = img.asnumpy().astype('uint8')[...,::-1]
-    #Compute predictions
+    #Compute predictions (keep information of the top-3 predicted classes for each pixel)
     labelmaps, probs = deeplab.predict_topk(img, k=3)
     #Save probabilities
     deeplab.save_json_probs(probs, outfile + '_prob.json')
 
-    #Save result maps
+    #Save result maps, one for each of the top-k predictions, (an image with the predicted class id)
     for i, labelmap in enumerate(labelmaps):
         Image.fromarray(labelmap.astype(np.uint8)).save(outfile+(('_%d.png')%i))
 
@@ -64,10 +70,7 @@ def visualize_deeplab(img, outfile, deeplab):
     deeplab.visualize(img,labelmap,outfile+(('_%d_vis.png')%i), probs[i])
 
 
-
 def run_model(img_names, i, path):
-    # output folder
-
     if not os.path.exists(output_segmentation_path):
         os.makedirs(output_segmentation_path)
     if not os.path.exists(output_detection_path):
@@ -76,35 +79,42 @@ def run_model(img_names, i, path):
     from maskrcnn.instance_segmentation import Instance_segmentation
 
 
-
+    print("Loading models...")
     deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
                                     './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
                                     './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
-    #deeplab.build_class_file('./classes/cocoStuff.csv', './classes/cocoThing.csv', './classes/cocoMerged.csv', './classes/deeplabToCoco.csv','./classes/panoptic.csv')
-    #maskrcnn = Instance_segmentation()
-
-    # images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
-    # images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
-    #           '../COCO/images/train2017/000000000030.jpg']
-
-    import time
+    maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
 
     start = time.time()
-
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
-        print("start mxnet (%d)"% (i))
-        #test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i), maskrcnn)
-        print("end mxnet (%d), start tensorflow"% (i))
-        test_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        print("Done, %d" % i)
-        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        print("+ Run detection (%d)" % i)
+        run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        print("- End detection (%d)" % i)
+        print("+ Run segmentation (%d)" % i)
+        run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        print("- End segmentation (%d)" % i)
         end = time.time()
-        delta = end - start
-        print("time (%d): %d" % (i,delta))
         i+=1
+    delta = end - start
+    print("time (%d): %d" % (i, delta))
 
+    start = time.time()
+    for img_name in img_names:
+        img = mx.image.imread(path + img_name)
+        img_name = img_name.split('.')[0]
+        print("Run detection (%d)" % i)
+        visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        print("End detection (%d)" % i)
+        print("Start segmentation (%d)" % i)
+        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        print("End segmentation (%d)" % i)
+        end = time.time()
+        i += 1
+    delta = end - start
+
+    print("time (%d): %d" % (i, delta))
 
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):
@@ -114,17 +124,6 @@ class FuncThread(threading.Thread):
 
     def run(self):
         self._target(*self._args)
-
-
-
-
-
-
-
-
-
-
-
 
 
 def run_threads():
@@ -158,54 +157,10 @@ def run_threads():
                 run_model(files[2*i:2*i+2],2*i, '../COCO/images/train2017/')
                 break
     else:
-        run_model(['1.jpg'], 0, '../COCO/images/')
-
-
-
+        run_model(['3.jpg'], 0, '../COCO/images/')
 
 
 if __name__ == "__main__":
-    # #Execute inference, semantic segmentation on coco
-    # #python inference.py --dataset coco --model-zoo psp_resnet101_coco --model-zoo fcn_resnet50_ade --eval
-    #
-    # # output folder
-    # outdir = 'outdir'
-    # if not os.path.exists(outdir):
-    #     os.makedirs(outdir)
-    # from deeplab.semantic_segmentation import Semantic_segmentation
-    # from maskrcnn.instance_segmentation import Instance_segmentation
-    # deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml', './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth')
-    # maskrcnn = Instance_segmentation()
-    #
-    # #images = ['../COCO/images/1.jpg','../COCO/images/2.jpg','../COCO/images/3.jpg','../COCO/images/4.jpg']
-    # images = ['../COCO/images/train2017/000000000009.jpg','../COCO/images/train2017/000000000025.jpg','../COCO/images/train2017/000000000030.jpg']
-    #
-    # import time
-    #
-    #
-    # sum =0
-    # count=0
-    # for i,img_name in enumerate(images):
-    #     start = time.time()
-    #
-    #     img = mx.image.imread(img_name)
-    #
-    #     test_maskrcnn(img, outdir + '/mask_segment_%d.jpg' % (i))
-    #     test_deeplab(img, outdir + '/sem_segment_%d.jpg' % (i))
-    #     print("Done, %d" % i)
-    #
-    #     end = time.time()
-    #     delta=end - start
-    #     sum+=delta
-    #     count+=1
-    #     print("time: " + str(delta))
-    # print("average per image: " + str(1.0*sum/count)+" s")
-
-
-
-
-    import time
-
     start = time.time()
     run_threads()
 

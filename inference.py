@@ -156,6 +156,8 @@ def run_threads():
         nchuncks = len(chuncks)
         pbar = tqdm(total=nchuncks)
 
+        print("Number of images: %d" % len(files))
+        print("Number of tasks: %d (%d images per task)" % (nchuncks, chunck_size))
         print("Scheduling tasks...")
 
         pool = Pool(4)

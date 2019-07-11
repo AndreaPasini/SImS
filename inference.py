@@ -84,17 +84,17 @@ def run_model(img_names, i, path):
     maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
     #print("\n+ New task. Images: %d-%d" % (i,i+len(img_names)-1))
     for img_name in img_names:
-        # img = mx.image.imread(path + img_name)
-        # img_name = img_name.split('.')[0]
-        #run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        #run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        img = mx.image.imread(path + img_name)
+        img_name = img_name.split('.')[0]
+        run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         i+=1
 
     for img_name in img_names:
-        # img = mx.image.imread(path + img_name)
-        # img_name = img_name.split('.')[0]
-        #visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        #visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        img = mx.image.imread(path + img_name)
+        img_name = img_name.split('.')[0]
+        visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         i += 1
 
     return 0
@@ -150,8 +150,8 @@ def run_threads():
         def update(x):
             pbar.update()
 
-        files = listdir('../COCO/images/val2017/')
-        chunck_size = 10
+        files = listdir('../COCO/images/val2017/') [0:8]###
+        chunck_size = 2#10
         chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
         nchuncks = len(chuncks)
         pbar = tqdm(total=nchuncks)

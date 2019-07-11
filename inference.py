@@ -78,43 +78,26 @@ def run_model(img_names, i, path):
     from deeplab.semantic_segmentation import Semantic_segmentation
     from maskrcnn.instance_segmentation import Instance_segmentation
 
-
-    print("Loading models...")
     deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
                                     './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
                                     './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
     maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
-
-    start = time.time()
+    print("\n+ New task. Images: %d-%d" % (i,i+len(img_names)-1))
     for img_name in img_names:
-        img = mx.image.imread(path + img_name)
-        img_name = img_name.split('.')[0]
-        print("+ Run detection (%d)" % i)
+        # img = mx.image.imread(path + img_name)
+        # img_name = img_name.split('.')[0]
         #run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        print("- End detection (%d)" % i)
-        print("+ Run segmentation (%d)" % i)
         #run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        print("- End segmentation (%d)" % i)
-        end = time.time()
         i+=1
-    delta = end - start
-    print("time (%d): %d" % (i, delta))
 
-    start = time.time()
     for img_name in img_names:
-        img = mx.image.imread(path + img_name)
-        img_name = img_name.split('.')[0]
-        print("Run detection (%d)" % i)
+        # img = mx.image.imread(path + img_name)
+        # img_name = img_name.split('.')[0]
         #visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        print("End detection (%d)" % i)
-        print("Start segmentation (%d)" % i)
         #visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        print("End segmentation (%d)" % i)
-        end = time.time()
         i += 1
-    delta = end - start
 
-    print("time (%d): %d" % (i, delta))
+    return 0
 
 class FuncThread(threading.Thread):
     def __init__(self, target, *args):
@@ -124,6 +107,20 @@ class FuncThread(threading.Thread):
 
     def run(self):
         self._target(*self._args)
+
+
+
+
+
+
+
+
+def printResult(result):
+    print(result)
+
+
+def dummy(a, b, c):
+    return 1
 
 
 def run_threads():
@@ -149,65 +146,26 @@ def run_threads():
     parallel=True
 
     if parallel:
-        # files = listdir('../COCO/images/train2017/')
-        # for i in range(0,4):
-        #     newpid = os.fork()
-        #     if newpid == 0:
-        #         print("Fork process: %d to %d" %(2*i,2*i+2))
-        #         run_model(files[2*i:2*i+2],2*i, '../COCO/images/train2017/')
-        #         break
 
-
-
-        ############################
-
-        import time
-        import multiprocessing
-
-        # def basic_func(x):
-        #     if x == 0:
-        #         return 'zero'
-        #     elif x % 2 == 0:
-        #         return 'even'
-        #     else:
-        #         return 'odd'
-
-        # def multiprocessing_func(x):
-        #     y = x * x
-        #     time.sleep(2)
-        #     print('{} squared results in a/an {} number'.format(x, basic_func(y)))
-
-        # starttime = time.time()
-        # processes = []
-        # files = listdir('../COCO/images/train2017/')
-        # for i in range(0, 4):
-        #     p = multiprocessing.Process(target=run_model, args=(files[2*i:2*i+2],2*i, '../COCO/images/train2017/'))
-        #     processes.append(p)
-        #     p.start()
-        #
-        # for process in processes:
-        #     process.join()
-        #
-        # print('That took {} seconds'.format(time.time() - starttime))
-
-        ntasks=8
-
-        pbar = tqdm(total=ntasks)
-
-        def update(*a):
+        def update(x):
             pbar.update()
-            print("done")
 
         files = listdir('../COCO/images/train2017/')
+        chunck_size = 10
+        chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
+        nchuncks = len(chuncks)
+        pbar = tqdm(total=nchuncks)
+
+        print("Scheduling tasks...")
+
         pool = Pool(4)
-        for i in range(ntasks):
-            pool.apply_async(run_model, args=(files[i], i, '../COCO/images/train2017/'), callback=update)
+        for i in range(nchuncks):
+            pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, '../COCO/images/train2017/'), callback=update)
         pool.close()
         pool.join()
-        ######################
+        pbar.close()
 
-
-
+        print("Done")
 
     else:
         run_model(['3.jpg'], 0, '../COCO/images/')

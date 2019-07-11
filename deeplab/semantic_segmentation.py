@@ -21,11 +21,11 @@ from deeplab.libs.models import *
 def get_device(cuda):
     cuda = cuda and torch.cuda.is_available()
     device = torch.device("cuda" if cuda else "cpu")
-    if cuda:
-        current_device = torch.cuda.current_device()
-        print("(Deeplab) Device:", torch.cuda.get_device_name(current_device))
-    else:
-        print("(Deeplab) Device: CPU")
+    #if cuda:
+        #current_device = torch.cuda.current_device()
+        #print("(Deeplab) Device:", torch.cuda.get_device_name(current_device))
+    #else:
+        #print("(Deeplab) Device: CPU")
     return device
 
 from deeplab.demo import get_classtable

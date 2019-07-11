@@ -82,7 +82,7 @@ def run_model(img_names, i, path):
                                     './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
                                     './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
     maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
-    print("\n+ New task. Images: %d-%d" % (i,i+len(img_names)-1))
+    #print("\n+ New task. Images: %d-%d" % (i,i+len(img_names)-1))
     for img_name in img_names:
         # img = mx.image.imread(path + img_name)
         # img_name = img_name.split('.')[0]

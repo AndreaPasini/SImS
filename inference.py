@@ -111,7 +111,7 @@ def run_tasks(chunck_size, input_path, num_processes):
     def update(x):
         pbar.update()
 
-    files = listdir(input_path)[0:10]
+    files = listdir(input_path)
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     start_time = datetime.now()
     print("Running inference on validation images...")
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
-    chunck_size = 1#10    # number of images processed for each task
+    chunck_size = 10    # number of images processed for each task
     num_processes = 10   # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
     run_tasks(chunck_size, input_images, num_processes)

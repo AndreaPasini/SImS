@@ -150,7 +150,7 @@ def run_threads():
         def update(x):
             pbar.update()
 
-        files = listdir('../COCO/images/test2017/')
+        files = listdir('../COCO/images/val2017/')
         chunck_size = 10
         chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
         nchuncks = len(chuncks)
@@ -162,7 +162,7 @@ def run_threads():
 
         pool = Pool(4)
         for i in range(nchuncks):
-            pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, '../COCO/images/test2017/'), callback=update)
+            pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, '../COCO/images/val2017/'), callback=update)
         pool.close()
         pool.join()
         pbar.close()

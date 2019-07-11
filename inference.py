@@ -25,7 +25,7 @@ import threading
 import PIL.Image as Image
 import matplotlib.pyplot as plt
 import json
-
+from multiprocessing import Pool
 '''
 
  Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
@@ -177,21 +177,32 @@ def run_threads():
         #     time.sleep(2)
         #     print('{} squared results in a/an {} number'.format(x, basic_func(y)))
 
-        starttime = time.time()
-        processes = []
+        # starttime = time.time()
+        # processes = []
+        # files = listdir('../COCO/images/train2017/')
+        # for i in range(0, 4):
+        #     p = multiprocessing.Process(target=run_model, args=(files[2*i:2*i+2],2*i, '../COCO/images/train2017/'))
+        #     processes.append(p)
+        #     p.start()
+        #
+        # for process in processes:
+        #     process.join()
+        #
+        # print('That took {} seconds'.format(time.time() - starttime))
+
+        ntasks=8
+
+        pbar = tqdm(total=ntasks)
+
+        def update(*a):
+            pbar.update()
+
         files = listdir('../COCO/images/train2017/')
-        for i in range(0, 4):
-            p = multiprocessing.Process(target=run_model, args=(files[2*i:2*i+2],2*i, '../COCO/images/train2017/'))
-            processes.append(p)
-            p.start()
-
-        for process in processes:
-            process.join()
-
-        print('That took {} seconds'.format(time.time() - starttime))
-
-
-
+        pool = Pool(4)
+        for i in range(ntasks):
+            pool.apply_async(run_model, args=(files[i], i, '../COCO/images/train2017/'), callback=update)
+        pool.close()
+        pool.join()
         ######################
 
 

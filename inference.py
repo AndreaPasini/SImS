@@ -1,29 +1,15 @@
-from itertools import groupby
 
 import matplotlib
 matplotlib.use('Agg')
 
 import os
 
-import time
+from datetime import datetime
 from tqdm import tqdm
 import numpy as np
-import argparse
 import mxnet as mx
-from mxnet import gluon, random
-from mxnet.gluon.data.vision import transforms
-
-import gluoncv
-from gluoncv.model_zoo.segbase import *
-from gluoncv.model_zoo import get_model
-from gluoncv.data import get_segmentation_dataset, ms_batchify_fn
-from gluoncv.utils.viz import get_color_pallete, plot_image
-from gluoncv.data.transforms.presets.ssd import load_test
-from gluoncv.utils.viz import plot_bbox
-
-import threading
 import PIL.Image as Image
-import matplotlib.pyplot as plt
+from os import listdir
 import json
 from multiprocessing import Pool
 '''
@@ -69,8 +55,13 @@ def visualize_deeplab(img, outfile, deeplab):
     labelmap = np.array(Image.open(outfile + (('_%d.png') % i)), np.uint8)   #.labelmap.astype(np.uint8)).save()
     deeplab.visualize(img,labelmap,outfile+(('_%d_vis.png')%i), probs[i])
 
-
+# Apply neural networks for segmentation and detection
 def run_model(img_names, i, path):
+    """
+    :param img_names: list of image files being processed
+    :param i: index of the first image being processed (= process images from i to i+len(img_names))
+    :param path: input path for reading images
+    """
     if not os.path.exists(output_segmentation_path):
         os.makedirs(output_segmentation_path)
     if not os.path.exists(output_detection_path):
@@ -82,13 +73,27 @@ def run_model(img_names, i, path):
                                     './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
                                     './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
     maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
-    #print("\n+ New task. Images: %d-%d" % (i,i+len(img_names)-1))
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
         i+=1
+    return 0
+
+# Visualize segmentation and detection
+def visualize_model(img_names, i, path):
+    if not os.path.exists(output_segmentation_path):
+        os.makedirs(output_segmentation_path)
+    if not os.path.exists(output_detection_path):
+        os.makedirs(output_detection_path)
+    from deeplab.semantic_segmentation import Semantic_segmentation
+    from maskrcnn.instance_segmentation import Instance_segmentation
+
+    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
+                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
+                                    './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
+    maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
 
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
@@ -99,87 +104,41 @@ def run_model(img_names, i, path):
 
     return 0
 
-class FuncThread(threading.Thread):
-    def __init__(self, target, *args):
-        threading.Thread.__init__(self)
-        self._target = target
-        self._args = args
+# Run tasks with multiprocessing
+# chunk_size = number of images processed for each task
+# input_path = path to input images
+def run_tasks(chunck_size, input_path, num_processes):
+    def update(x):
+        pbar.update()
 
-    def run(self):
-        self._target(*self._args)
+    files = listdir(input_path)[20]
+    chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
+    nchuncks = len(chuncks)
+    pbar = tqdm(total=nchuncks)
 
+    print("Number of images: %d" % len(files))
+    print("Number of tasks: %d (%d images per task)" % (nchuncks, chunck_size))
+    print("Scheduling tasks...")
 
+    pool = Pool(num_processes)
+    for i in range(nchuncks):
+        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+    pool.close()
+    pool.join()
+    pbar.close()
 
-
-
-
-
-
-def printResult(result):
-    print(result)
-
-
-def dummy(a, b, c):
-    return 1
-
-
-def run_threads():
-    from os import listdir
-
-
-    # images = ['../COCO/images/train2017/000000000009.jpg', '../COCO/images/train2017/000000000025.jpg',
-    #           '../COCO/images/train2017/000000000030.jpg']
-
-    # jobs = []
-    # for i,img in enumerate(images):
-    #     t = FuncThread(run_model, img, i)
-    #     jobs.append(t)
-    #
-    # # Start the threads (i.e. calculate the random number lists)
-    # for j in jobs:
-    #     j.start()
-    #
-    # # Ensure all of the threads have finished
-    # for j in jobs:
-    #     j.join()
-
-    parallel=True
-
-    if parallel:
-
-        def update(x):
-            pbar.update()
-
-        files = listdir('../COCO/images/val2017/') [0:8]###
-        chunck_size = 2#10
-        chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
-        nchuncks = len(chuncks)
-        pbar = tqdm(total=nchuncks)
-
-        print("Number of images: %d" % len(files))
-        print("Number of tasks: %d (%d images per task)" % (nchuncks, chunck_size))
-        print("Scheduling tasks...")
-
-        pool = Pool(4)
-        for i in range(nchuncks):
-            pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, '../COCO/images/val2017/'), callback=update)
-        pool.close()
-        pool.join()
-        pbar.close()
-
-        print("Done")
-
-    else:
-        run_model(['3.jpg'], 0, '../COCO/images/')
+    print("Done")
 
 
 if __name__ == "__main__":
-    start = time.time()
-    run_threads()
-
-    end = time.time()
-    delta = end - start
-    print("time: " + str(delta))
-
-    quit()
+    start_time = datetime.now()
+    print("Running inference on validation images...")
+    print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
+    chunck_size = 2#10    # number of images processed for each task
+    num_processes = 10   # number of processes where scheduling tasks
+    input_images = '../COCO/images/val2017/'
+    run_tasks(chunck_size, input_images, num_processes)
+    end_time = datetime.now()
+    print("Done.")
+    print('Duration: ' + str(end_time - start_time))
 

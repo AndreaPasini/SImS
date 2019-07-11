@@ -196,6 +196,7 @@ def run_threads():
 
         def update(*a):
             pbar.update()
+            print("done")
 
         files = listdir('../COCO/images/train2017/')
         pool = Pool(4)

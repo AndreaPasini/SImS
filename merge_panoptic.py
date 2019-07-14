@@ -12,6 +12,7 @@ import PIL.Image as Image
 from os import listdir
 import json
 from multiprocessing import Pool
+from maskrcnn.instance_segmentation import extract_mask_bool
 '''
 
  Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
@@ -25,6 +26,110 @@ from multiprocessing import Pool
 
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
+output_panoptic_path = '../COCO/output/panoptic'
+
+
+
+
+
+def build_panoptic(img_id):
+
+    #Parameters:
+    overlap_thr = 0.5
+
+    #read segmentation data
+    segm_probs = json.load(open(output_segmentation_path + '/' + img_id + '_prob.json', 'r'))
+    segm_labelmap = np.array(Image.open(output_segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
+    #read detection data
+    detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
+
+
+    # pan_segm_id = np.zeros((segm_labelmap['height'], segm_labelmap['width']), dtype=np.uint32)
+    used = np.full(segm_labelmap.shape, False)
+    # annotation = {}
+    # try:
+    #     annotation['image_id'] = int(img_id)
+    # except Exception:
+    #     annotation['image_id'] = img_id
+    #
+    # annotation['file_name'] = img['file_name'].replace('.jpg', '.png')
+    #
+    # segments_info = []
+    for obj in detection: #for ann in ...
+        obj_mask = extract_mask_bool(obj['mask'])
+        obj_area = np.count_nonzero(obj_mask)
+        if obj_area == 0:
+             continue
+        #Filter out objects with intersection > 50% with used area
+        intersect = np.count_nonzero(used & obj_mask)
+        if 1.0 * intersect / obj_area > overlap_thr:
+            continue
+        used = used | obj_mask
+    #
+    #     mask = COCOmask.decode(ann['segmentation']) == 1
+    #     if intersect != 0:
+    #         mask = np.logical_and(pan_segm_id == 0, mask)
+    #     segment_id = id_generator.get_id(ann['category_id'])
+    #     panoptic_ann = {}
+    #     panoptic_ann['id'] = segment_id
+    #     panoptic_ann['category_id'] = ann['category_id']
+    #     pan_segm_id[mask] = segment_id
+    #     segments_info.append(panoptic_ann)
+    #
+    # for ann in sem_by_image[img_id]:
+    #     mask = COCOmask.decode(ann['segmentation']) == 1
+    #     mask_left = np.logical_and(pan_segm_id == 0, mask)
+    #     if mask_left.sum() < stuff_area_limit:
+    #         continue
+    #     segment_id = id_generator.get_id(ann['category_id'])
+    #     panoptic_ann = {}
+    #     panoptic_ann['id'] = segment_id
+    #     panoptic_ann['category_id'] = ann['category_id']
+    #     pan_segm_id[mask_left] = segment_id
+    #     segments_info.append(panoptic_ann)
+    #
+    # annotation['segments_info'] = segments_info
+    # panoptic_json.append(annotation)
+
+    # Image.fromarray(id2rgb(pan_segm_id)).save(
+    #     os.path.join(segmentations_folder, annotation['file_name'])
+    # )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #Auxiliary functions for neural networks
 def run_maskrcnn(img, outfile, maskrcnn):
@@ -111,16 +216,7 @@ def run_tasks(chunck_size, input_path, num_processes):
     def update(x):
         pbar.update()
 
-    files = set(sorted(listdir(input_path)))
-
-    donefiles = set()
-    for file in listdir('../COCO/output/detection/'):
-        if file.endswith("png"):
-            donefiles.add(file.split(".")[0] + ".jpg")
-
-    files = list(files - donefiles)
-
-
+    files = sorted(listdir(input_path))
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)
@@ -130,8 +226,8 @@ def run_tasks(chunck_size, input_path, num_processes):
     print("Scheduling tasks...")
 
     pool = Pool(num_processes)
-    #for i in range(nchuncks):
-    #    pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+    for i in range(nchuncks):
+        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
     pool.close()
     pool.join()
     pbar.close()
@@ -141,12 +237,24 @@ def run_tasks(chunck_size, input_path, num_processes):
 
 if __name__ == "__main__":
     start_time = datetime.now()
-    print("Running inference on validation images...")
+    print("Building panoptic segmentation on validation images...")
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
     chunck_size = 10    # number of images processed for each task
     num_processes = 10   # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
-    run_tasks(chunck_size, input_images, num_processes)
+
+
+
+    files = set(sorted(listdir('../COCO/images/')))
+    donefiles = set()
+    for file in listdir('../COCO/output/detection/'):
+        if file.endswith("png"):
+            donefiles.add(file.split(".")[0]+".jpg")
+
+    todo = files-donefiles
+
+    #run_tasks(chunck_size, input_images, num_processes)
+    #build_panoptic('000000183007')
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

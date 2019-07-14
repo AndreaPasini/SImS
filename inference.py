@@ -125,7 +125,7 @@ def run_tasks(chunck_size, input_path, num_processes):
             done_1.add(file.split("_")[0] + ".jpg")
         if file.endswith("2.png"):
             done_2.add(file.split("_")[0] + ".jpg")
-    files = list((files - done_json)+(files-done_0)+(files-done_1)+(files-done_2))
+    files = list((files - done_json)|(files-done_0)|(files-done_1)|(files-done_2))
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)

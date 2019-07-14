@@ -116,7 +116,7 @@ def run_tasks(chunck_size, input_path, num_processes):
     donefiles = set()
     for file in listdir('../COCO/output/detection/'):
         if file.endswith("json"):
-            donefiles.add(file.split(".")[0] + ".jpg")
+            donefiles.add(file.split("_")[0] + ".jpg")
     print(donefiles.pop())
     files = list(files - donefiles)
     print(files.pop())

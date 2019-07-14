@@ -112,14 +112,14 @@ def run_tasks(chunck_size, input_path, num_processes):
         pbar.update()
 
     files = set(sorted(listdir(input_path)))
-    print(files[0])
+    print(files.pop())
     donefiles = set()
     for file in listdir('../COCO/output/detection/'):
         if file.endswith("png"):
             donefiles.add(file.split(".")[0] + ".jpg")
-    print(donefiles[0])
+    print(donefiles.pop())
     files = list(files - donefiles)
-    print(files[0])
+    print(files.pop())
 
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)

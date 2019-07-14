@@ -111,7 +111,7 @@ def run_tasks(chunck_size, input_path, num_processes):
     def update(x):
         pbar.update()
 
-    files = listdir(input_path)
+    files = listdir(input_path)[4970:]
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)

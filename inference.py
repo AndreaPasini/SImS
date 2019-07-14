@@ -135,8 +135,8 @@ def run_tasks(chunck_size, input_path, num_processes):
     print("Scheduling tasks...")
 
     pool = Pool(num_processes)
-    #for i in range(nchuncks):
-    #    pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+    for i in range(nchuncks):
+        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
     pool.close()
     pool.join()
     pbar.close()

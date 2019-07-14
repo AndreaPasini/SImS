@@ -112,11 +112,20 @@ def run_tasks(chunck_size, input_path, num_processes):
         pbar.update()
 
     files = set(sorted(listdir(input_path)))
-    donefiles = set()
-    for file in listdir('../COCO/output/detection/'):
+    done_json = set()
+    done_0 = set()
+    done_1 = set()
+    done_2 = set()
+    for file in listdir('../COCO/output/segmentation/'):
         if file.endswith("json"):
-            donefiles.add(file.split("_")[0] + ".jpg")
-    files = list(files - donefiles)
+            done_json.add(file.split("_")[0] + ".jpg")
+        if file.endswith("0.png"):
+            done_0.add(file.split("_")[0] + ".jpg")
+        if file.endswith("1.png"):
+            done_1.add(file.split("_")[0] + ".jpg")
+        if file.endswith("2.png"):
+            done_2.add(file.split("_")[0] + ".jpg")
+    files = list((files - done_json)+(files-done_0)+(files-done_1)+(files-done_2))
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)
@@ -126,8 +135,8 @@ def run_tasks(chunck_size, input_path, num_processes):
     print("Scheduling tasks...")
 
     pool = Pool(num_processes)
-    for i in range(nchuncks):
-        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+    #for i in range(nchuncks):
+    #    pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
     pool.close()
     pool.join()
     pbar.close()

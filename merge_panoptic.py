@@ -44,7 +44,7 @@ def build_panoptic(img_id):
     detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
 
 
-    # pan_segm_id = np.zeros((segm_labelmap['height'], segm_labelmap['width']), dtype=np.uint32)
+    pan_segm_id = np.zeros((segm_labelmap['height'], segm_labelmap['width']), dtype=np.uint32)
     used = np.full(segm_labelmap.shape, False)
     # annotation = {}
     # try:
@@ -61,20 +61,23 @@ def build_panoptic(img_id):
         if obj_area == 0:
              continue
         #Filter out objects with intersection > 50% with used area
-        intersect = np.count_nonzero(used & obj_mask)
-        if 1.0 * intersect / obj_area > overlap_thr:
+        intersection_mask = used & obj_mask
+        intersect_area = np.count_nonzero(intersection_mask)
+        if 1.0 * intersect_area / obj_area > overlap_thr:
             continue
         used = used | obj_mask
+
+
     #
-    #     mask = COCOmask.decode(ann['segmentation']) == 1
-    #     if intersect != 0:
-    #         mask = np.logical_and(pan_segm_id == 0, mask)
-    #     segment_id = id_generator.get_id(ann['category_id'])
-    #     panoptic_ann = {}
-    #     panoptic_ann['id'] = segment_id
-    #     panoptic_ann['category_id'] = ann['category_id']
-    #     pan_segm_id[mask] = segment_id
-    #     segments_info.append(panoptic_ann)
+        segment_id = 3 #id_generator.get_id(ann['category_id'])
+    #   panoptic_ann = {}
+    #   panoptic_ann['id'] = segment_id
+    #   panoptic_ann['category_id'] = ann['category_id']
+        if intersect_area>0:
+            pan_segm_id[obj_mask & (~intersection_mask)] = segment_id
+        else:
+            pan_segm_id[obj_mask] = segment_id
+    #    segments_info.append(panoptic_ann)
     #
     # for ann in sem_by_image[img_id]:
     #     mask = COCOmask.decode(ann['segmentation']) == 1
@@ -243,18 +246,7 @@ if __name__ == "__main__":
     num_processes = 10   # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
 
-
-
-    files = set(sorted(listdir('../COCO/images/')))
-    donefiles = set()
-    for file in listdir('../COCO/output/detection/'):
-        if file.endswith("png"):
-            donefiles.add(file.split(".")[0]+".jpg")
-
-    todo = files-donefiles
-
-    #run_tasks(chunck_size, input_images, num_processes)
-    #build_panoptic('000000183007')
+    build_panoptic('000000183007')
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

@@ -1,5 +1,8 @@
 
 import matplotlib
+
+from panopticapi.evaluation import pq_compute, inspect
+
 matplotlib.use('Agg')
 
 import os
@@ -13,6 +16,8 @@ from os import listdir
 import json
 from multiprocessing import Pool
 from maskrcnn.instance_segmentation import extract_mask_bool
+from panopticapi.utils import IdGenerator, id2rgb
+
 '''
 
  Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
@@ -32,10 +37,20 @@ output_panoptic_path = '../COCO/output/panoptic'
 
 
 
-def build_panoptic(img_id):
+def build_panoptic(img_id, output_path):
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    #Read categories and create IdGenerator (official panopticapi repository)
+    categories_json_file='./classes/panoptic_coco_categories.json'
+    with open(categories_json_file, 'r') as f:
+        categories_list = json.load(f)
+    categories = {el['id']: el for el in categories_list}
+    id_generator = IdGenerator(categories)
 
     #Parameters:
     overlap_thr = 0.5
+    stuff_area_limit = 64 * 64
 
     #read segmentation data
     segm_probs = json.load(open(output_segmentation_path + '/' + img_id + '_prob.json', 'r'))
@@ -44,17 +59,18 @@ def build_panoptic(img_id):
     detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
 
 
-    pan_segm_id = np.zeros((segm_labelmap['height'], segm_labelmap['width']), dtype=np.uint32)
+    pan_segm_id = np.zeros(segm_labelmap.shape, dtype=np.uint32)
     used = np.full(segm_labelmap.shape, False)
-    # annotation = {}
-    # try:
-    #     annotation['image_id'] = int(img_id)
-    # except Exception:
-    #     annotation['image_id'] = img_id
-    #
-    # annotation['file_name'] = img['file_name'].replace('.jpg', '.png')
-    #
-    # segments_info = []
+
+    annotation = {}
+    try:
+        annotation['image_id'] = int(img_id)
+    except Exception:
+        annotation['image_id'] = img_id
+
+    annotation['file_name'] = img_id + '.png'
+
+    segments_info = []
     for obj in detection: #for ann in ...
         obj_mask = extract_mask_bool(obj['mask'])
         obj_area = np.count_nonzero(obj_mask)
@@ -67,63 +83,49 @@ def build_panoptic(img_id):
             continue
         used = used | obj_mask
 
-
-    #
-        segment_id = 3 #id_generator.get_id(ann['category_id'])
-    #   panoptic_ann = {}
-    #   panoptic_ann['id'] = segment_id
-    #   panoptic_ann['category_id'] = ann['category_id']
+        segment_id = id_generator.get_id(obj['class'])
+        panoptic_ann = {}
+        panoptic_ann['id'] = segment_id
+        panoptic_ann['category_id'] = obj['class']
         if intersect_area>0:
             pan_segm_id[obj_mask & (~intersection_mask)] = segment_id
         else:
             pan_segm_id[obj_mask] = segment_id
-    #    segments_info.append(panoptic_ann)
+        segments_info.append(panoptic_ann)
+
     #
-    # for ann in sem_by_image[img_id]:
-    #     mask = COCOmask.decode(ann['segmentation']) == 1
-    #     mask_left = np.logical_and(pan_segm_id == 0, mask)
-    #     if mask_left.sum() < stuff_area_limit:
-    #         continue
-    #     segment_id = id_generator.get_id(ann['category_id'])
-    #     panoptic_ann = {}
-    #     panoptic_ann['id'] = segment_id
-    #     panoptic_ann['category_id'] = ann['category_id']
-    #     pan_segm_id[mask_left] = segment_id
-    #     segments_info.append(panoptic_ann)
     #
-    # annotation['segments_info'] = segments_info
-    # panoptic_json.append(annotation)
+    for segm_class in np.unique(segm_labelmap):
+        segm_class = int(segm_class)
+        if segm_class==183: #void class
+            continue
 
-    # Image.fromarray(id2rgb(pan_segm_id)).save(
-    #     os.path.join(segmentations_folder, annotation['file_name'])
-    # )
+        #Check class: exclude non-stuff objects
+        category = categories[segm_class]
+        if category['isthing'] == 1:
+            continue
 
+        segm_mask = (segm_labelmap==segm_class)
+        mask_left = segm_mask & (~used)
+        # Filter out segments with small area
+        if np.count_nonzero(mask_left) < stuff_area_limit:
+            continue
+        segment_id = id_generator.get_id(segm_class)
+        panoptic_ann = {}
+        panoptic_ann['id'] = segment_id
+        panoptic_ann['category_id'] = segm_class
+        used = used | mask_left
+        pan_segm_id[mask_left] = segment_id
+        segments_info.append(panoptic_ann)
 
+    annotation['segments_info'] = segments_info
 
+    # Save annotated image
+    Image.fromarray(id2rgb(pan_segm_id)).save(
+         os.path.join(output_path, annotation['file_name'])
+    )
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return annotation
 
 
 
@@ -133,108 +135,35 @@ def build_panoptic(img_id):
 
 
 
-
-#Auxiliary functions for neural networks
-def run_maskrcnn(img, outfile, maskrcnn):
-    ids, scores, bboxes, masks = maskrcnn.predict(img)
-    maskrcnn.save_json_boxes(img, ids, scores, bboxes, masks, outfile + '_prob.json')
-
-def visualize_maskrcnn(img, outfile, maskrcnn):
-    data = json.load(open(outfile + '_prob.json','r'))
-    maskrcnn.visualize(img, data, outfile)
-
-def run_deeplab(img, outfile, deeplab):
-    img = img.asnumpy().astype('uint8')[...,::-1]
-    #Compute predictions (keep information of the top-3 predicted classes for each pixel)
-    labelmaps, probs = deeplab.predict_topk(img, k=3)
-    #Save probabilities
-    deeplab.save_json_probs(probs, outfile + '_prob.json')
-
-    #Save result maps, one for each of the top-k predictions, (an image with the predicted class id)
-    for i, labelmap in enumerate(labelmaps):
-        Image.fromarray(labelmap.astype(np.uint8)).save(outfile+(('_%d.png')%i))
-
-def visualize_deeplab(img, outfile, deeplab):
-    img = img.asnumpy().astype('uint8')[..., ::-1]
-    probs = json.load(open(outfile + '_prob.json','r'))
-
-    #Save result maps
-    i=0
-    labelmap = np.array(Image.open(outfile + (('_%d.png') % i)), np.uint8)   #.labelmap.astype(np.uint8)).save()
-    deeplab.visualize(img,labelmap,outfile+(('_%d_vis.png')%i), probs[i])
-
-# Apply neural networks for segmentation and detection
-def run_model(img_names, i, path):
-    """
-    :param img_names: list of image files being processed
-    :param i: index of the first image being processed (= process images from i to i+len(img_names))
-    :param path: input path for reading images
-    """
-    if not os.path.exists(output_segmentation_path):
-        os.makedirs(output_segmentation_path)
-    if not os.path.exists(output_detection_path):
-        os.makedirs(output_detection_path)
-    from deeplab.semantic_segmentation import Semantic_segmentation
-    from maskrcnn.instance_segmentation import Instance_segmentation
-
-    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
-                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
-                                    './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
-    maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
-    for img_name in img_names:
-        img = mx.image.imread(path + img_name)
-        img_name = img_name.split('.')[0]
-        run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        i+=1
-    return 0
-
-# Visualize segmentation and detection
-def visualize_model(img_names, i, path):
-    if not os.path.exists(output_segmentation_path):
-        os.makedirs(output_segmentation_path)
-    if not os.path.exists(output_detection_path):
-        os.makedirs(output_detection_path)
-    from deeplab.semantic_segmentation import Semantic_segmentation
-    from maskrcnn.instance_segmentation import Instance_segmentation
-
-    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
-                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
-                                    './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
-    maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
-
-    for img_name in img_names:
-        img = mx.image.imread(path + img_name)
-        img_name = img_name.split('.')[0]
-        visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        i += 1
-
-    return 0
 
 # Run tasks with multiprocessing
 # chunk_size = number of images processed for each task
 # input_path = path to input images
-def run_tasks(chunck_size, input_path, num_processes):
+def run_tasks(input_path, num_processes):
     def update(x):
         pbar.update()
 
     files = sorted(listdir(input_path))
-    chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
-    nchuncks = len(chuncks)
-    pbar = tqdm(total=nchuncks)
+    pbar = tqdm(total=len(files))
 
     print("Number of images: %d" % len(files))
-    print("Number of tasks: %d (%d images per task)" % (nchuncks, chunck_size))
     print("Scheduling tasks...")
 
+    panoptic_json = {}
+    ann_list = []
+
     pool = Pool(num_processes)
-    for i in range(nchuncks):
-        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+    results = []
+    for file in files:
+        results.append(pool.apply_async(build_panoptic, args=(file.split('_')[0], output_panoptic_path), callback=update))
     pool.close()
     pool.join()
     pbar.close()
 
+    for res in results:
+        ann_list.append(res.get())
+    with open(output_panoptic_path + "/panoptic.json", 'w') as f:
+        json.dump(panoptic_json, f)
     print("Done")
 
 
@@ -242,12 +171,28 @@ if __name__ == "__main__":
     start_time = datetime.now()
     print("Building panoptic segmentation on validation images...")
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
-    chunck_size = 10    # number of images processed for each task
     num_processes = 10   # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
 
-    build_panoptic('000000183007')
+
+
+    run_tasks(input_images, num_processes)
+
+    # panoptic_json = {}
+    # ann_list = []
+    # for file in listdir(output_detection_path):
+    #     if (file.endswith('json')):
+    #         ann_list.append(build_panoptic(file.split('_')[0], output_panoptic_path))
+    # panoptic_json['annotations']=ann_list
+    # with open(output_panoptic_path + "/panoptic.json", 'w') as f:
+    #     json.dump(panoptic_json, f)
+
+
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
+    #Run evaluation
+    pq_compute('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)
+    #inspect('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json",
+    #           '../COCO/annotations/panoptic_val2017', output_panoptic_path)

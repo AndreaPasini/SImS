@@ -12,6 +12,7 @@ import PIL.Image as Image
 from os import listdir
 import json
 from multiprocessing import Pool
+from panopticapi.utils import IdGenerator
 '''
 
  Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
@@ -112,20 +113,6 @@ def run_tasks(chunck_size, input_path, num_processes):
         pbar.update()
 
     files = set(sorted(listdir(input_path)))
-    done_json = set()
-    done_0 = set()
-    done_1 = set()
-    done_2 = set()
-    for file in listdir('../COCO/output/segmentation/'):
-        if file.endswith("json"):
-            done_json.add(file.split("_")[0] + ".jpg")
-        if file.endswith("0.png"):
-            done_0.add(file.split("_")[0] + ".jpg")
-        if file.endswith("1.png"):
-            done_1.add(file.split("_")[0] + ".jpg")
-        if file.endswith("2.png"):
-            done_2.add(file.split("_")[0] + ".jpg")
-    files = list((files - done_json)|(files-done_0)|(files-done_1)|(files-done_2))
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)

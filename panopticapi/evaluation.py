@@ -72,6 +72,33 @@ class PQStat():
 
         return {'pq': pq / n, 'sq': sq / n, 'rq': rq / n, 'n': n}, per_class_results
 
+    def pq_average2(self, categories, isthing):
+        pq, sq, rq, n = 0, 0, 0, 0
+        precision, recall = 0, 0
+        per_class_results = {}
+        for label, label_info in categories.items():
+            if isthing is not None:
+                cat_isthing = label_info['isthing'] == 1
+                if isthing != cat_isthing:
+                    continue
+            iou = self.pq_per_cat[label].iou
+            tp = self.pq_per_cat[label].tp
+            fp = self.pq_per_cat[label].fp
+            fn = self.pq_per_cat[label].fn
+            if tp + fp + fn == 0:
+                per_class_results[label] = {'pq': 0.0, 'sq': 0.0, 'rq': 0.0}
+                continue
+            n += 1
+            pq_class = iou / (tp + 0.5 * fp + 0.5 * fn)
+            sq_class = iou / tp if tp != 0 else 0
+            rq_class = tp / (tp + 0.5 * fp + 0.5 * fn)
+            per_class_results[label] = {'pq': pq_class, 'sq': sq_class, 'rq': rq_class}
+            pq += pq_class
+            sq += sq_class
+            rq += rq_class
+            precision+=(tp)/(tp+fp)
+            recall+=(tp)/(tp+fn)
+        return {'pq': pq / n, 'sq': sq / n, 'rq': rq / n, 'n': n, 'p' : precision/n, 'r' : recall/n}, per_class_results
 
 @get_traceback
 def pq_compute_single_core(proc_id, annotation_set, gt_folder, pred_folder, categories):
@@ -293,6 +320,71 @@ def inspect(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
 
 
 
+
+
+
+def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
+
+    start_time = time.time()
+    with open(gt_json_file, 'r') as f:
+        gt_json = json.load(f)
+    with open(pred_json_file, 'r') as f:
+        pred_json = json.load(f)
+
+    if gt_folder is None:
+        gt_folder = gt_json_file.replace('.json', '')
+    if pred_folder is None:
+        pred_folder = pred_json_file.replace('.json', '')
+    categories = {el['id']: el for el in gt_json['categories']}
+
+    print("Evaluation panoptic segmentation metrics:")
+    print("Ground truth:")
+    print("\tSegmentation folder: {}".format(gt_folder))
+    print("\tJSON file: {}".format(gt_json_file))
+    print("Prediction:")
+    print("\tSegmentation folder: {}".format(pred_folder))
+    print("\tJSON file: {}".format(pred_json_file))
+
+    if not os.path.isdir(gt_folder):
+        raise Exception("Folder {} with ground truth segmentations doesn't exist".format(gt_folder))
+    if not os.path.isdir(pred_folder):
+        raise Exception("Folder {} with predicted segmentations doesn't exist".format(pred_folder))
+
+    pred_annotations = {el['image_id']: el for el in pred_json['annotations']}
+    matched_annotations_list = []
+    for gt_ann in gt_json['annotations']:
+        image_id = gt_ann['image_id']
+        if image_id not in pred_annotations:
+            raise Exception('no prediction for the image with id: {}'.format(image_id))
+            #continue ###########################################################################################################################ANDREA
+        matched_annotations_list.append((gt_ann, pred_annotations[image_id]))
+
+    pq_stat = pq_compute_multi_core(matched_annotations_list, gt_folder, pred_folder, categories)
+
+    metrics = [("All", None), ("Things", True), ("Stuff", False)]
+    results = {}
+    for name, isthing in metrics:
+        results[name], per_class_results = pq_stat.pq_average(categories, isthing=isthing)
+        if name == 'All':
+            results['per_class'] = per_class_results
+    print("{:10s}| {:>5s}  {:>5s}  {:>5s} {:>5s}  {:>5s} {:>5s}".format("", "PQ", "SQ", "RQ", "N","p","r"))
+    print("-" * (10 + 7 * 4))
+
+    for name, _isthing in metrics:
+        print("{:10s}| {:5.1f}  {:5.1f}  {:5.1f} {:5d}  {:5.1f}  {:5.1f} ".format(
+            name,
+            100 * results[name]['pq'],
+            100 * results[name]['sq'],
+            100 * results[name]['rq'],
+            results[name]['n'],
+            100 * results[name]['p'],
+            100 * results[name]['r'])
+        )
+
+    t_delta = time.time() - start_time
+    print("Time elapsed: {:0.2f} seconds".format(t_delta))
+
+    return results
 
 
 

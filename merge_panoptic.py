@@ -1,7 +1,7 @@
 
 import matplotlib
 
-from panopticapi.evaluation import pq_compute, inspect
+from panopticapi.evaluation import pq_compute, inspect, pq_compute2
 
 matplotlib.use('Agg')
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
 
 
-    run_tasks(input_images, num_processes)
+    #run_tasks(input_images, num_processes)
 
     # panoptic_json = {}
     # ann_list = []
@@ -194,6 +194,6 @@ if __name__ == "__main__":
     print('Duration: ' + str(end_time - start_time))
 
     #Run evaluation
-    pq_compute('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)
+    pq_compute2('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)
     #inspect('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json",
     #           '../COCO/annotations/panoptic_val2017', output_panoptic_path)

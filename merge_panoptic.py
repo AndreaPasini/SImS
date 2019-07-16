@@ -75,7 +75,7 @@ def build_panoptic2(img_id, output_path):
         obj['area']=obj_area
         obj['mask']=obj_mask
 
-    detection.sort(key=lambda x: x['area'], reverse=False)
+    detection.sort(key=lambda x: x['area'], reverse=True)
 
 
     for obj in detection: #for ann in ...

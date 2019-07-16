@@ -155,7 +155,7 @@ def run_tasks(input_path, num_processes):
     pool = Pool(num_processes)
     results = []
     for file in files:
-        results.append(pool.apply_async(build_panoptic, args=(file.split('_')[0], output_panoptic_path), callback=update))
+        results.append(pool.apply_async(build_panoptic, args=(file.split('.')[0], output_panoptic_path), callback=update))
     pool.close()
     pool.join()
     pbar.close()

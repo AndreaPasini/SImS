@@ -75,7 +75,7 @@ def build_panoptic2(img_id, output_path):
         obj['area']=obj_area
         obj['mask']=obj_mask
 
-    detection.sort(key=lambda x: x['area'], reverse=True)
+    detection.sort(key=lambda x: x['area'], reverse=True)##First bigger, than smaller
 
 
     for obj in detection: #for ann in ...
@@ -131,6 +131,16 @@ def build_panoptic2(img_id, output_path):
     Image.fromarray(id2rgb(pan_segm_id)).save(
          os.path.join(output_path, annotation['file_name'])
     )
+
+    ##############
+    ##remove segments with zero area
+    ids = set(np.unique(pan_segm_id))
+    segments_info_cleaned = []
+    for seg in segments_info:
+        if seg['id'] in ids:
+            segments_info_cleaned.append(seg)
+    annotation['segments_info'] = segments_info_cleaned
+    ##################
 
     return annotation
 

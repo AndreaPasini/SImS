@@ -96,8 +96,11 @@ class PQStat():
             pq += pq_class
             sq += sq_class
             rq += rq_class
-            precision+=(tp)/(tp+fp)
-            recall+=(tp)/(tp+fn)
+
+            if tp+fp>0:
+                precision+=(tp)/(tp+fp)
+            if tp+fn>0:
+                recall+=(tp)/(tp+fn)
         return {'pq': pq / n, 'sq': sq / n, 'rq': rq / n, 'n': n, 'p' : precision/n, 'r' : recall/n}, per_class_results
 
 @get_traceback
@@ -355,8 +358,8 @@ def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     for gt_ann in gt_json['annotations']:
         image_id = gt_ann['image_id']
         if image_id not in pred_annotations:
-            raise Exception('no prediction for the image with id: {}'.format(image_id))
-            #continue ###########################################################################################################################ANDREA
+            #raise Exception('no prediction for the image with id: {}'.format(image_id))
+            continue ###########################################################################################################################ANDREA
         matched_annotations_list.append((gt_ann, pred_annotations[image_id]))
 
     pq_stat = pq_compute_multi_core(matched_annotations_list, gt_folder, pred_folder, categories)

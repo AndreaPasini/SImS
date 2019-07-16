@@ -33,6 +33,106 @@ output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
 output_panoptic_path = '../COCO/output/panoptic'
 
+def build_panoptic2(img_id, output_path):
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    #Read categories and create IdGenerator (official panopticapi repository)
+    categories_json_file='./classes/panoptic_coco_categories.json'
+    with open(categories_json_file, 'r') as f:
+        categories_list = json.load(f)
+    categories = {el['id']: el for el in categories_list}
+    id_generator = IdGenerator(categories)
+
+    #Parameters:
+    overlap_thr = 0.5
+    stuff_area_limit = 64 * 64
+
+    #read segmentation data
+    segm_probs = json.load(open(output_segmentation_path + '/' + img_id + '_prob.json', 'r'))
+    segm_labelmap = np.array(Image.open(output_segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
+    #read detection data
+    detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
+
+
+    pan_segm_id = np.zeros(segm_labelmap.shape, dtype=np.uint32)
+    used = np.full(segm_labelmap.shape, False)
+
+    annotation = {}
+    try:
+        annotation['image_id'] = int(img_id)
+    except Exception:
+        annotation['image_id'] = img_id
+
+    annotation['file_name'] = img_id + '.png'
+
+    segments_info = []
+
+
+    for obj in detection: #for ann in ...
+        obj_mask = extract_mask_bool(obj['mask'])
+        obj_area = np.count_nonzero(obj_mask)
+        obj['area']=obj_area
+        obj['mask']=obj_mask
+
+    detection.sort(key=lambda x: x['area'], reverse=False)
+
+
+    for obj in detection: #for ann in ...
+        obj_mask = obj['mask']#extract_mask_bool(obj['mask'])
+        obj_area = obj['area']#np.count_nonzero(obj_mask)
+        if obj_area == 0:
+             continue
+        #Filter out objects with intersection > 50% with used area
+        intersection_mask = used & obj_mask
+        intersect_area = np.count_nonzero(intersection_mask)
+        if 1.0 * intersect_area / obj_area > overlap_thr:
+            continue
+        used = used | obj_mask
+
+        segment_id = id_generator.get_id(obj['class'])
+        panoptic_ann = {}
+        panoptic_ann['id'] = segment_id
+        panoptic_ann['category_id'] = obj['class']
+        if intersect_area>0:
+            pan_segm_id[obj_mask & (~intersection_mask)] = segment_id
+        else:
+            pan_segm_id[obj_mask] = segment_id
+        segments_info.append(panoptic_ann)
+
+    #
+    #
+    for segm_class in np.unique(segm_labelmap):
+        segm_class = int(segm_class)
+        if segm_class==183: #void class
+            continue
+
+        #Check class: exclude non-stuff objects
+        category = categories[segm_class]
+        if category['isthing'] == 1:
+            continue
+
+        segm_mask = (segm_labelmap==segm_class)
+        mask_left = segm_mask & (~used)
+        # Filter out segments with small area
+        if np.count_nonzero(mask_left) < stuff_area_limit:
+            continue
+        segment_id = id_generator.get_id(segm_class)
+        panoptic_ann = {}
+        panoptic_ann['id'] = segment_id
+        panoptic_ann['category_id'] = segm_class
+        used = used | mask_left
+        pan_segm_id[mask_left] = segment_id
+        segments_info.append(panoptic_ann)
+
+    annotation['segments_info'] = segments_info
+
+    # Save annotated image
+    Image.fromarray(id2rgb(pan_segm_id)).save(
+         os.path.join(output_path, annotation['file_name'])
+    )
+
+    return annotation
 
 
 
@@ -71,6 +171,8 @@ def build_panoptic(img_id, output_path):
     annotation['file_name'] = img_id + '.png'
 
     segments_info = []
+
+
     for obj in detection: #for ann in ...
         obj_mask = extract_mask_bool(obj['mask'])
         obj_area = np.count_nonzero(obj_mask)
@@ -155,7 +257,7 @@ def run_tasks(input_path, num_processes):
     pool = Pool(num_processes)
     results = []
     for file in files:
-        results.append(pool.apply_async(build_panoptic, args=(file.split('.')[0], output_panoptic_path), callback=update))
+        results.append(pool.apply_async(build_panoptic2, args=(file.split('.')[0], output_panoptic_path), callback=update))
     pool.close()
     pool.join()
     pbar.close()
@@ -177,7 +279,7 @@ if __name__ == "__main__":
 
 
 
-    #run_tasks(input_images, num_processes)
+    run_tasks(input_images, num_processes)
 
     # panoptic_json = {}
     # ann_list = []

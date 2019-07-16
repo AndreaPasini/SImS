@@ -56,6 +56,9 @@ class Instance_segmentation:
     """
     Instance segmentation model (MaskRCNN). Trained on COCO THINGS dataset.
     gluoncv (https://gluon-cv.mxnet.io/model_zoo/segmentation.html)
+    Results on COCO val2017
+    Box AP (averaged 10 values):  39.2
+    Mask AP (averaged 10 values): 35.4
     """
 
     __model = None

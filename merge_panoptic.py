@@ -162,6 +162,7 @@ def run_tasks(input_path, num_processes):
 
     for res in results:
         ann_list.append(res.get())
+    panoptic_json['annotations'] = ann_list
     with open(output_panoptic_path + "/panoptic.json", 'w') as f:
         json.dump(panoptic_json, f)
     print("Done")

@@ -86,8 +86,8 @@ def build_panoptic2(img_id, output_path):
         #Filter out objects with intersection > 50% with used area
         intersection_mask = used & obj_mask
         intersect_area = np.count_nonzero(intersection_mask)
-        #if 1.0 * intersect_area / obj_area > overlap_thr:
-        #    continue
+        #TODO#######################if 1.0 * intersect_area / obj_area > overlap_thr:
+        #############    continue
         used = used | obj_mask
 
         segment_id = id_generator.get_id(obj['class'])
@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
 
 
-    run_tasks(input_images, num_processes)
+    #run_tasks(input_images, num_processes)
 
     # panoptic_json = {}
     # ann_list = []

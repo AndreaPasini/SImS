@@ -133,8 +133,8 @@ def pq_compute_single_core(proc_id, annotation_set, gt_folder, pred_folder, cate
             pred_labels_set.remove(label)
             if pred_segms[label]['category_id'] not in categories:
                 raise KeyError('In the image with ID {} segment with ID {} has unknown category_id {}.'.format(gt_ann['image_id'], label, pred_segms[label]['category_id']))
-        if len(pred_labels_set) != 0:
-            raise KeyError('In the image with ID {} the following segment IDs {} are presented in JSON and not presented in PNG.'.format(gt_ann['image_id'], list(pred_labels_set)))
+        ###########################if len(pred_labels_set) != 0:
+            ###################TODO###############raise KeyError('In the image with ID {} the following segment IDs {} are presented in JSON and not presented in PNG.'.format(gt_ann['image_id'], list(pred_labels_set)))
 
         # confusion matrix calculation
         pan_gt_pred = pan_gt.astype(np.uint64) * OFFSET + pan_pred.astype(np.uint64)

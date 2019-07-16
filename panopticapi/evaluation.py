@@ -364,7 +364,7 @@ def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     metrics = [("All", None), ("Things", True), ("Stuff", False)]
     results = {}
     for name, isthing in metrics:
-        results[name], per_class_results = pq_stat.pq_average(categories, isthing=isthing)
+        results[name], per_class_results = pq_stat.pq_average2(categories, isthing=isthing)
         if name == 'All':
             results['per_class'] = per_class_results
     print("{:10s}| {:>5s}  {:>5s}  {:>5s} {:>5s}  {:>5s} {:>5s}".format("", "PQ", "SQ", "RQ", "N","p","r"))

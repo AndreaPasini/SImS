@@ -279,7 +279,7 @@ if __name__ == "__main__":
 
 
 
-    #run_tasks(input_images, num_processes)
+    run_tasks(input_images, num_processes)
 
     # panoptic_json = {}
     # ann_list = []

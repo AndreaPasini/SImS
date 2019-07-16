@@ -45,7 +45,7 @@ def build_panoptic2(img_id, output_path):
     id_generator = IdGenerator(categories)
 
     #Parameters:
-    overlap_thr = 0.5
+    overlap_thr = 0.9###########
     stuff_area_limit = 64 * 64
 
     #read segmentation data
@@ -75,7 +75,7 @@ def build_panoptic2(img_id, output_path):
         obj['area']=obj_area
         obj['mask']=obj_mask
 
-    detection.sort(key=lambda x: x['area'], reverse=True)##First bigger, than smaller
+    detection.sort(key=lambda x: x['area'], reverse=False)##First smaller, than bigger
 
 
     for obj in detection: #for ann in ...
@@ -86,8 +86,8 @@ def build_panoptic2(img_id, output_path):
         #Filter out objects with intersection > 50% with used area
         intersection_mask = used & obj_mask
         intersect_area = np.count_nonzero(intersection_mask)
-        #TODO#######################if 1.0 * intersect_area / obj_area > overlap_thr:
-        #############    continue
+        if 1.0 * intersect_area / obj_area > overlap_thr:
+            continue
         used = used | obj_mask
 
         segment_id = id_generator.get_id(obj['class'])

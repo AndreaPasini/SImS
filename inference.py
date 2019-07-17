@@ -165,7 +165,7 @@ if __name__ == "__main__":
     chunck_size = 10    # number of images processed for each task
     num_processes = 10  # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
-    run_tasks(chunck_size, input_images, num_processes)
+    #run_tasks(chunck_size, input_images, num_processes)
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

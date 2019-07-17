@@ -15,7 +15,7 @@ import PIL.Image as Image
 from os import listdir
 import json
 from multiprocessing import Pool
-from maskrcnn.instance_segmentation import extract_mask_bool
+from maskrcnn.utils import extract_mask_bool
 from panopticapi.utils import IdGenerator, id2rgb
 
 '''
@@ -45,7 +45,7 @@ def build_panoptic2(img_id, output_path):
     id_generator = IdGenerator(categories)
 
     #Parameters:
-    overlap_thr = 0.9###########
+    overlap_thr = 0.5
     stuff_area_limit = 64 * 64
 
     #read segmentation data

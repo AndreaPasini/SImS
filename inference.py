@@ -1,10 +1,9 @@
-
+from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')
 
 import os
 
-from datetime import datetime
 from tqdm import tqdm
 import numpy as np
 import mxnet as mx
@@ -12,7 +11,11 @@ import PIL.Image as Image
 from os import listdir
 import json
 from multiprocessing import Pool
-from panopticapi.utils import IdGenerator
+
+from deeplab.semantic_segmentation import Semantic_segmentation
+from maskrcnn.instance_segmentation import Instance_segmentation
+from maskrcnn_matterport.instance_segmentation import Instance_segmentation as Instance_seg_matterport
+
 '''
 
  Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
@@ -26,11 +29,19 @@ from panopticapi.utils import IdGenerator
 
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
+output_detection_matterport_path = '../COCO/output/detection_matterport'
 
 #Auxiliary functions for neural networks
 def run_maskrcnn(img, outfile, maskrcnn):
+    #Run maskrcnn (gluon implementation) and save result
     ids, scores, bboxes, masks = maskrcnn.predict(img)
     maskrcnn.save_json_boxes(img, ids, scores, bboxes, masks, outfile + '_prob.json')
+
+def run_maskrcnn_matterport(img, outfile, maskrcnn):
+    #Run maskrcnn (matterport implementation) and save result
+    img = img.asnumpy().astype('uint8')
+    prediction = maskrcnn.predict(img)
+    maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')
 
 def visualize_maskrcnn(img, outfile, maskrcnn):
     data = json.load(open(outfile + '_prob.json','r'))
@@ -58,6 +69,10 @@ def visualize_deeplab(img, outfile, deeplab):
 
 # Apply neural networks for segmentation and detection
 def run_model(img_names, i, path):
+    use_deeplab = False
+    use_maskrcnn = False
+    use_maskrcnn_matterport = True
+
     """
     :param img_names: list of image files being processed
     :param i: index of the first image being processed (= process images from i to i+len(img_names))
@@ -67,19 +82,27 @@ def run_model(img_names, i, path):
         os.makedirs(output_segmentation_path)
     if not os.path.exists(output_detection_path):
         os.makedirs(output_detection_path)
-    from deeplab.semantic_segmentation import Semantic_segmentation
-    from maskrcnn.instance_segmentation import Instance_segmentation
+    if not os.path.exists(output_detection_matterport_path):
+        os.makedirs(output_detection_matterport_path)
 
-    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
-                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
-                                    './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
-    maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
+    if use_deeplab:
+        deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
+                                        './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
+                                        './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
+    if use_maskrcnn:
+        maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
+    if use_maskrcnn_matterport:
+        maskrcnn_matterport = Instance_seg_matterport('./classes/maskrcnnToCoco.csv')
+
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
-        run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        i+=1
+        if use_deeplab:
+            run_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        if use_maskrcnn:
+            run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
+        if use_maskrcnn_matterport:
+            run_maskrcnn_matterport(img, output_detection_matterport_path + '/' + img_name, maskrcnn_matterport)
     return 0
 
 # Visualize segmentation and detection
@@ -88,20 +111,24 @@ def visualize_model(img_names, i, path):
         os.makedirs(output_segmentation_path)
     if not os.path.exists(output_detection_path):
         os.makedirs(output_detection_path)
+    if not os.path.exists(output_detection_matterport_path):
+        os.makedirs(output_detection_matterport_path)
+
     from deeplab.semantic_segmentation import Semantic_segmentation
     from maskrcnn.instance_segmentation import Instance_segmentation
+    from maskrcnn_matterport.instance_segmentation import Instance_segmentation as Instance_seg_matterport
 
-    deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
-                                    './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
-                                    './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
+    # deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
+    #                                 './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
+    #                                 './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
     maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
 
     for img_name in img_names:
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
-        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
-        i += 1
+        visualize_maskrcnn(img, output_detection_matterport_path + '/' + img_name, maskrcnn)
+        #visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
 
     return 0
 
@@ -112,7 +139,7 @@ def run_tasks(chunck_size, input_path, num_processes):
     def update(x):
         pbar.update()
 
-    files = set(sorted(listdir(input_path)))
+    files = sorted(listdir(input_path))
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)
@@ -136,10 +163,11 @@ if __name__ == "__main__":
     print("Running inference on validation images...")
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
     chunck_size = 10    # number of images processed for each task
-    num_processes = 10   # number of processes where scheduling tasks
+    num_processes = 10  # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
     run_tasks(chunck_size, input_images, num_processes)
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
+    #visualize_model(sorted(listdir('../COCO/images/val2017/')), 0, '../COCO/images/val2017/')

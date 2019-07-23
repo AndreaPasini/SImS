@@ -143,7 +143,7 @@ def run_tasks(chunck_size, input_path, num_processes, use_deeplab=True, use_mask
     files = list(files)
     print("Done: %d" % len(done))
     print("Todo: %d" % len(files))
-    return
+
 
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)

@@ -290,18 +290,12 @@ if __name__ == "__main__":
     num_processes = 10   # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
 
+    # Set up results being merged
+    detection_path = output_detection_matterport_path
+    segmentation_path = output_segmentation_path
 
-
+    # Execute merging operation
     run_tasks(input_images, num_processes, detection_path, segmentation_path)
-
-    # panoptic_json = {}
-    # ann_list = []
-    # for file in listdir(output_detection_path):
-    #     if (file.endswith('json')):
-    #         ann_list.append(build_panoptic(file.split('_')[0], output_panoptic_path))
-    # panoptic_json['annotations']=ann_list
-    # with open(output_panoptic_path + "/panoptic.json", 'w') as f:
-    #     json.dump(panoptic_json, f)
 
 
     end_time = datetime.now()

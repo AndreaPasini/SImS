@@ -91,6 +91,7 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
         maskrcnn_matterport = Instance_seg_matterport('./classes/maskrcnnToCoco.csv')
 
     for img_name in img_names:
+        print(img_name)
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         if use_deeplab:
@@ -99,6 +100,8 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
             run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         if use_maskrcnn_matterport:
             run_maskrcnn_matterport(img, output_detection_matterport_path + '/' + img_name, maskrcnn_matterport)
+
+        print(img_name+"done")
     return 0
 
 # Visualize segmentation and detection

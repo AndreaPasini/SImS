@@ -116,7 +116,8 @@ class Instance_segmentation:
         fvectorized = np.vectorize(f_maskrcnn_to_coco)
 
         # Convert to coco class ids:
-        detection['class_ids'] = fvectorized(detection['class_ids'])
+        if detection['class_ids'].size!=0:  #necessary to avoid exceptions
+            detection['class_ids'] = fvectorized(detection['class_ids'])
 
         return detection
 

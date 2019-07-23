@@ -41,15 +41,8 @@ def run_maskrcnn(img, outfile, maskrcnn):
 def run_maskrcnn_matterport(img, outfile, maskrcnn):
     #Run maskrcnn (matterport implementation) and save result
     img = img.asnumpy().astype('uint8')
-    try:
-        prediction = maskrcnn.predict(img)
-    except:
-        traceback.print_exc()
-        print("except netw")
-    try:
-        maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')
-    except:
-        print("except json")
+    prediction = maskrcnn.predict(img)
+    maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')
 def visualize_maskrcnn(img, outfile, maskrcnn):
     data = json.load(open(outfile + '_prob.json','r'))
     maskrcnn.visualize(img, data, outfile)
@@ -148,12 +141,12 @@ def run_tasks(chunck_size, input_path, num_processes, use_deeplab=True, use_mask
     files = sorted(listdir(input_path))
 
     #start from last changes...
-    files=set(files)
-    done = set([f.split('_')[0]+'.jpg' for f in listdir(output_detection_matterport_path)])
-    files = files-done
-    files = list(files)
-    print("Done: %d" % len(done))
-    print("Todo: %d" % len(files))
+    # files=set(files)
+    # done = set([f.split('_')[0]+'.jpg' for f in listdir(output_detection_matterport_path)])
+    # files = files-done
+    # files = list(files)
+    # print("Done: %d" % len(done))
+    # print("Todo: %d" % len(files))
 
 
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
@@ -166,7 +159,6 @@ def run_tasks(chunck_size, input_path, num_processes, use_deeplab=True, use_mask
 
     pool = Pool(num_processes)
     for i in range(nchuncks):
-        print(chuncks[i])
         pool.apply_async(run_model, args=(chuncks[i], input_path, use_deeplab, use_maskrcnn, use_maskrcnn_matterport), callback=update)
     pool.close()
     pool.join()

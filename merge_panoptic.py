@@ -35,7 +35,7 @@ output_detection_matterport_path = '../COCO/output/detection_matterport'
 output_panoptic_path = '../COCO/output/panoptic'
 
 
-def build_panoptic2(img_id, output_path):
+def build_panoptic2(img_id, output_path, detection_path, segmentation_path):
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -51,10 +51,10 @@ def build_panoptic2(img_id, output_path):
     stuff_area_limit = 64 * 64
 
     #read segmentation data
-    segm_probs = json.load(open(output_segmentation_path + '/' + img_id + '_prob.json', 'r'))
-    segm_labelmap = np.array(Image.open(output_segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
+    segm_probs = json.load(open(segmentation_path + '/' + img_id + '_prob.json', 'r'))
+    segm_labelmap = np.array(Image.open(segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
     #read detection data
-    detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
+    detection = json.load(open(detection_path + '/' + img_id + '_prob.json','r'))
 
 
     pan_segm_id = np.zeros(segm_labelmap.shape, dtype=np.uint32)
@@ -166,10 +166,10 @@ def build_panoptic(img_id, output_path, detection_path, segmentation_path):
     stuff_area_limit = 64 * 64
 
     #read segmentation data
-    segm_probs = json.load(open(output_segmentation_path + '/' + img_id + '_prob.json', 'r'))
-    segm_labelmap = np.array(Image.open(output_segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
+    segm_probs = json.load(open(segmentation_path + '/' + img_id + '_prob.json', 'r'))
+    segm_labelmap = np.array(Image.open(segmentation_path + '/' + img_id + '_0.png'), np.uint8)   #.labelmap.astype(np.uint8)).save()
     #read detection data
-    detection = json.load(open(output_detection_path + '/' + img_id + '_prob.json','r'))
+    detection = json.load(open(detection_path + '/' + img_id + '_prob.json','r'))
 
 
     pan_segm_id = np.zeros(segm_labelmap.shape, dtype=np.uint32)
@@ -254,7 +254,7 @@ def build_panoptic(img_id, output_path, detection_path, segmentation_path):
 # Run tasks with multiprocessing
 # chunk_size = number of images processed for each task
 # input_path = path to input images
-def run_tasks(input_path, num_processes):
+def run_tasks(num_processes, input_path, detection_path, segmentation_path):
     def update(x):
         pbar.update()
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     segmentation_path = output_segmentation_path
 
     # Execute merging operation
-    run_tasks(input_images, num_processes, detection_path, segmentation_path)
+    run_tasks(num_processes, input_images, detection_path, segmentation_path)
 
 
     end_time = datetime.now()

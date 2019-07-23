@@ -40,9 +40,14 @@ def run_maskrcnn(img, outfile, maskrcnn):
 def run_maskrcnn_matterport(img, outfile, maskrcnn):
     #Run maskrcnn (matterport implementation) and save result
     img = img.asnumpy().astype('uint8')
-    prediction = maskrcnn.predict(img)
-    maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')
-
+    try:
+        prediction = maskrcnn.predict(img)
+    except:
+        print("except netw")
+    try:
+        maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')
+    except:
+        print("except json")
 def visualize_maskrcnn(img, outfile, maskrcnn):
     data = json.load(open(outfile + '_prob.json','r'))
     maskrcnn.visualize(img, data, outfile)
@@ -91,7 +96,6 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
         maskrcnn_matterport = Instance_seg_matterport('./classes/maskrcnnToCoco.csv')
 
     for img_name in img_names:
-        print(img_name)
         img = mx.image.imread(path + img_name)
         img_name = img_name.split('.')[0]
         if use_deeplab:
@@ -103,7 +107,6 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
                 run_maskrcnn_matterport(img, output_detection_matterport_path + '/' + img_name, maskrcnn_matterport)
             except:
                 print("ex")
-        print(img_name+"done")
     return 0
 
 # Visualize segmentation and detection

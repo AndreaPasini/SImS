@@ -1,3 +1,4 @@
+import traceback
 from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')
@@ -43,6 +44,7 @@ def run_maskrcnn_matterport(img, outfile, maskrcnn):
     try:
         prediction = maskrcnn.predict(img)
     except:
+        traceback.print_exc()
         print("except netw")
     try:
         maskrcnn.save_json_boxes(prediction, outfile + '_prob.json')

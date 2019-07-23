@@ -270,7 +270,7 @@ def run_tasks(num_processes, input_path, detection_path, segmentation_path):
     pool = Pool(num_processes)
     results = []
     for file in files:
-        results.append(pool.apply_async(build_panoptic2, args=(file.split('.')[0], output_panoptic_path), callback=update))
+        results.append(pool.apply_async(build_panoptic2, args=(file.split('.')[0], output_panoptic_path, detection_path, segmentation_path), callback=update))
     pool.close()
     pool.join()
     pbar.close()

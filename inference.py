@@ -99,8 +99,10 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
         if use_maskrcnn:
             run_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         if use_maskrcnn_matterport:
-            run_maskrcnn_matterport(img, output_detection_matterport_path + '/' + img_name, maskrcnn_matterport)
-
+            try:
+                run_maskrcnn_matterport(img, output_detection_matterport_path + '/' + img_name, maskrcnn_matterport)
+            except:
+                print("ex")
         print(img_name+"done")
     return 0
 

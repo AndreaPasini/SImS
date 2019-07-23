@@ -68,11 +68,7 @@ def visualize_deeplab(img, outfile, deeplab):
     deeplab.visualize(img,labelmap,outfile+(('_%d_vis.png')%i), probs[i])
 
 # Apply neural networks for segmentation and detection
-def run_model(img_names, i, path):
-    use_deeplab = False
-    use_maskrcnn = False
-    use_maskrcnn_matterport = True
-
+def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn_matterport=True):
     """
     :param img_names: list of image files being processed
     :param i: index of the first image being processed (= process images from i to i+len(img_names))
@@ -135,11 +131,20 @@ def visualize_model(img_names, i, path):
 # Run tasks with multiprocessing
 # chunk_size = number of images processed for each task
 # input_path = path to input images
-def run_tasks(chunck_size, input_path, num_processes):
+def run_tasks(chunck_size, input_path, num_processes, use_deeplab=True, use_maskrcnn=True, use_maskrcnn_matterport=True):
     def update(x):
         pbar.update()
 
     files = sorted(listdir(input_path))
+
+    files=set(files)
+    done = set([f.split('_')[0]+'.jpg' for f in listdir(output_detection_matterport_path)])
+    files = files-done
+    files = list(files)
+    print("Done: %d" % len(done))
+    print("Todo: %d" % len(files))
+    return
+
     chuncks = [files[x:x + chunck_size] for x in range(0, len(files), chunck_size)]
     nchuncks = len(chuncks)
     pbar = tqdm(total=nchuncks)
@@ -150,7 +155,7 @@ def run_tasks(chunck_size, input_path, num_processes):
 
     pool = Pool(num_processes)
     for i in range(nchuncks):
-        pool.apply_async(run_model, args=(chuncks[i], chunck_size*i, input_path), callback=update)
+        pool.apply_async(run_model, args=(chuncks[i], input_path, use_deeplab, use_maskrcnn, use_maskrcnn_matterport), callback=update)
     pool.close()
     pool.join()
     pbar.close()
@@ -165,7 +170,8 @@ if __name__ == "__main__":
     chunck_size = 10    # number of images processed for each task
     num_processes = 10  # number of processes where scheduling tasks
     input_images = '../COCO/images/val2017/'
-    run_tasks(chunck_size, input_images, num_processes)
+    #Run tasks: select which neural networks you'd like to run
+    run_tasks(chunck_size, input_images, num_processes, use_deeplab=False, use_maskrcnn=False, use_maskrcnn_matterport=True)
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

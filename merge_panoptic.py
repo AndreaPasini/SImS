@@ -31,7 +31,9 @@ from panopticapi.utils import IdGenerator, id2rgb
 
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
+output_detection_matterport_path = '../COCO/output/detection_matterport'
 output_panoptic_path = '../COCO/output/panoptic'
+
 
 def build_panoptic2(img_id, output_path):
     if not os.path.exists(output_path):
@@ -147,7 +149,8 @@ def build_panoptic2(img_id, output_path):
 
 
 
-def build_panoptic(img_id, output_path):
+def build_panoptic(img_id, output_path, detection_path, segmentation_path):
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -289,7 +292,7 @@ if __name__ == "__main__":
 
 
 
-    run_tasks(input_images, num_processes)
+    run_tasks(input_images, num_processes, detection_path, segmentation_path)
 
     # panoptic_json = {}
     # ann_list = []

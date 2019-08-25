@@ -1,12 +1,17 @@
+"""
+ Author: Andrea Pasini
+ This file provides the code for merging detection (MaskRCNN) and segmentation (Deeplab) to obtain panoptic segmentation
+
+ Usage:
+ - configure folders and models to be used (search for ### CONFIGURATION ### in this file)
+ - run this file (main)
+
+"""
 
 import matplotlib
-
-from panopticapi.evaluation import pq_compute, inspect, pq_compute2
-
+from panopticapi.evaluation import pq_compute_pr
 matplotlib.use('Agg')
-
 import os
-
 from datetime import datetime
 from tqdm import tqdm
 import numpy as np
@@ -18,24 +23,24 @@ from multiprocessing import Pool
 from maskrcnn.utils import extract_mask_bool
 from panopticapi.utils import IdGenerator, id2rgb
 
-'''
-
- Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
- For instance segmentation: gluoncv (https://gluon-cv.mxnet.io/model_zoo/segmentation.html)
-
- Note for high performances (Xeon server):
- - mxnet-mkl does not work
- - using intel-numpy improves performances from 146 to 90 seconds per image
-
-'''
-
+### CONFIGURATION ###
+# Folder configuration
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
 output_detection_matterport_path = '../COCO/output/detection_matterport'
 output_panoptic_path = '../COCO/output/panoptic'
+### CONFIGURATION ###
 
-
-def build_panoptic2(img_id, output_path, detection_path, segmentation_path):
+def build_panoptic_area(img_id, output_path, detection_path, segmentation_path):
+    """
+    Build panoptic segmentation of the specified image.
+    Sort segments by area: write first smaller objects to avoid overlapping.
+    :param img_id: image identifier (for retrieving file name)
+    :param output_path: path to store panoptic segmentation results (png)
+    :param detection_path: input path for detection
+    :param segmentation_path: input path for semantic segmentation
+    :return: the json annotation with class information for each panoptic segment.
+    """
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -146,10 +151,16 @@ def build_panoptic2(img_id, output_path, detection_path, segmentation_path):
 
     return annotation
 
-
-
-
 def build_panoptic(img_id, output_path, detection_path, segmentation_path):
+    """
+    Build panoptic segmentation of the specified image.
+    Sort segments by confidence: write first objects with higher detection confidence (standard behavior proposed by COCO).
+    :param img_id: image identifier (for retrieving file name)
+    :param output_path: path to store panoptic segmentation results (png)
+    :param detection_path: input path for detection
+    :param segmentation_path: input path for semantic segmentation
+    :return: the json annotation with class information for each panoptic segment.
+    """
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -242,15 +253,6 @@ def build_panoptic(img_id, output_path, detection_path, segmentation_path):
 
     return annotation
 
-
-
-
-
-
-
-
-
-
 # Run tasks with multiprocessing
 # chunk_size = number of images processed for each task
 # input_path = path to input images
@@ -297,12 +299,9 @@ if __name__ == "__main__":
     # Execute merging operation
     run_tasks(num_processes, input_images, detection_path, segmentation_path)
 
-
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
-    #Run evaluation
-    pq_compute2('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)
-    #inspect('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json",
-    #           '../COCO/annotations/panoptic_val2017', output_panoptic_path)
+    #Run evaluation (Panoptic Quality: PQ)
+    pq_compute_pr('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)

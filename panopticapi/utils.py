@@ -6,7 +6,7 @@ import functools
 import traceback
 import json
 import numpy as np
-
+from PIL import Image
 
 # The decorator is used to prints an error trhown inside process
 def get_traceback(f):
@@ -97,3 +97,13 @@ def id2rgb(id_map):
 def save_json(d, file):
     with open(file, 'w') as f:
         json.dump(d, f)
+
+
+def load_png_annotation(img_path):
+    """
+    Load png annotation in panoptic-segmentation format
+    :param img_path: path to input annotation
+    :return: numpy array with annotation (ids of the segments)
+    """
+    pan_pred = np.array(Image.open(img_path), dtype=np.uint32)
+    return rgb2id(pan_pred)

@@ -1,4 +1,7 @@
-#from maskrcnn_matterport.samples.coco.coco import CocoDataset, build_coco_results
+# Andrea Pasini
+# This file contains the class for running: instance segmentation model (MaskRCNN). Trained on COCO THING dataset.
+# Matterport implementation (https://github.com/matterport/Mask_RCNN)
+
 import skimage
 import numpy as np
 

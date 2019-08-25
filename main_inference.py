@@ -1,10 +1,23 @@
-import traceback
+"""
+ Author: Andrea Pasini
+ This file provides the code for running inference with detection (MaskRCNN) and segmentation (Deeplab).
+ Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
+ For instance segmentation: gluoncv (https://gluon-cv.mxnet.io/model_zoo/segmentation.html)
+
+ Usage:
+ - configure folders and models to be used (search for ### CONFIGURATION ### in this file)
+ - run this file (main)
+
+ Note for high performances (Xeon server):
+ - mxnet-mkl does not work
+ - using intel-numpy improves performances from 146 to 90 seconds per image
+
+"""
+
 from datetime import datetime
 import matplotlib
 matplotlib.use('Agg')
-
 import os
-
 from tqdm import tqdm
 import numpy as np
 import mxnet as mx
@@ -12,25 +25,21 @@ import PIL.Image as Image
 from os import listdir
 import json
 from multiprocessing import Pool
-
 from deeplab.semantic_segmentation import Semantic_segmentation
 from maskrcnn.instance_segmentation import Instance_segmentation
 from maskrcnn_matterport.instance_segmentation import Instance_segmentation as Instance_seg_matterport
 
-'''
-
- Github repository for segmentation:  https://github.com/kazuto1011/deeplab-pytorch
- For instance segmentation: gluoncv (https://gluon-cv.mxnet.io/model_zoo/segmentation.html)
-
- Note for high performances (Xeon server):
- - mxnet-mkl does not work
- - using intel-numpy improves performances from 146 to 90 seconds per image
-
-'''
-
+### CONFIGURATION ###
+# Folder configuration
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
 output_detection_matterport_path = '../COCO/output/detection_matterport'
+# Model configuration: select which models you want to run
+use_deeplab=False
+use_maskrcnn=False
+use_maskrcnn_matterport=True
+### CONFIGURATION ###
+
 
 #Auxiliary functions for neural networks
 def run_maskrcnn(img, outfile, maskrcnn):
@@ -127,7 +136,7 @@ def visualize_model(img_names, i, path):
         img_name = img_name.split('.')[0]
         visualize_maskrcnn(img, output_detection_path + '/' + img_name, maskrcnn)
         visualize_maskrcnn(img, output_detection_matterport_path + '/' + img_name, maskrcnn)
-        #visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
+        visualize_deeplab(img, output_segmentation_path + '/' + img_name, deeplab)
 
     return 0
 
@@ -140,7 +149,7 @@ def run_tasks(chunck_size, input_path, num_processes, use_deeplab=True, use_mask
 
     files = sorted(listdir(input_path))
 
-    #start from last changes...
+    #start with recover... Use this code if the job was interrupted.
     # files=set(files)
     # done = set([f.split('_')[0]+'.jpg' for f in listdir(output_detection_matterport_path)])
     # files = files-done
@@ -180,4 +189,5 @@ if __name__ == "__main__":
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
+    #Uncomment to visualize results
     #visualize_model(sorted(listdir('../COCO/images/val2017/')), 0, '../COCO/images/val2017/')

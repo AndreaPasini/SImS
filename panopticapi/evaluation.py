@@ -3,13 +3,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-import os, sys
+import os
 import numpy as np
 import json
 import time
-from datetime import timedelta
 from collections import defaultdict
-import argparse
 import multiprocessing
 
 import PIL.Image as Image
@@ -72,7 +70,15 @@ class PQStat():
 
         return {'pq': pq / n, 'sq': sq / n, 'rq': rq / n, 'n': n}, per_class_results
 
-    def pq_average2(self, categories, isthing):
+    def pq_average_pr(self, categories, isthing):
+        """
+        Author: Andrea Pasini
+        This function differs from official panopticapi repository since it also computes per-class precision/recall
+        :param categories: information about COCO categories
+        :param isthing:
+        :return:
+        """
+
         pq, sq, rq, n = 0, 0, 0, 0
         precision, recall = 0, 0
         per_class_results = {}
@@ -211,124 +217,18 @@ def pq_compute_multi_core(matched_annotations_list, gt_folder, pred_folder, cate
     return pq_stat
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def inspect(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
+def pq_compute_pr(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
+    """
+    Compute evaluation of panoptic segmentation results, including precision and recall (pr).
+    :param gt_json_file: json file with ground truth annotations
+    :param pred_json_file: json file with panoptic segmentation predictions
+    :param gt_folder: folder with ground truth png annotations
+    :param pred_folder: folder with prediction png annotations
+    :return: details of the evaluation
+    """
 
     start_time = time.time()
-    with open(gt_json_file, 'r') as f:
-        gt_json = json.load(f)
-    with open(pred_json_file, 'r') as f:
-        pred_json = json.load(f)
-
-    if gt_folder is None:
-        gt_folder = gt_json_file.replace('.json', '')
-    if pred_folder is None:
-        pred_folder = pred_json_file.replace('.json', '')
-    categories = {el['id']: el for el in gt_json['categories']}
-
-    print("Evaluation panoptic segmentation metrics:")
-    print("Ground truth:")
-    print("\tSegmentation folder: {}".format(gt_folder))
-    print("\tJSON file: {}".format(gt_json_file))
-    print("Prediction:")
-    print("\tSegmentation folder: {}".format(pred_folder))
-    print("\tJSON file: {}".format(pred_json_file))
-
-    if not os.path.isdir(gt_folder):
-        raise Exception("Folder {} with ground truth segmentations doesn't exist".format(gt_folder))
-    if not os.path.isdir(pred_folder):
-        raise Exception("Folder {} with predicted segmentations doesn't exist".format(pred_folder))
-
-    pred_annotations = {el['image_id']: el for el in pred_json['annotations']}
-    matched_annotations_list = []
-    matched_annotations_imgid = []
-    for gt_ann in gt_json['annotations']:
-        image_id = gt_ann['image_id']
-        if image_id not in pred_annotations:
-            #raise Exception('no prediction for the image with id: {}'.format(image_id))
-            continue ###########################################################################################################################ANDREA
-        matched_annotations_list.append((gt_ann, pred_annotations[image_id]))
-        matched_annotations_imgid.append(image_id)
-
-
-
-    pq_stat = PQStat()
-    i=0
-    for annotation_set, img_id in zip(matched_annotations_list,matched_annotations_imgid):
-        res = pq_compute_single_core(1, [annotation_set], gt_folder, pred_folder, categories)
-        pq_stat += res
-        i+=1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    metrics = [("All", None), ("Things", True), ("Stuff", False)]
-    results = {}
-    for name, isthing in metrics:
-        results[name], per_class_results = pq_stat.pq_average(categories, isthing=isthing)
-        if name == 'All':
-            results['per_class'] = per_class_results
-    print("{:10s}| {:>5s}  {:>5s}  {:>5s} {:>5s}".format("", "PQ", "SQ", "RQ", "N"))
-    print("-" * (10 + 7 * 4))
-
-    for name, _isthing in metrics:
-        print("{:10s}| {:5.1f}  {:5.1f}  {:5.1f} {:5d}".format(
-            name,
-            100 * results[name]['pq'],
-            100 * results[name]['sq'],
-            100 * results[name]['rq'],
-            results[name]['n'])
-        )
-
-    t_delta = time.time() - start_time
-    print("Time elapsed: {:0.2f} seconds".format(t_delta))
-
-    return results
-
-
-
-
-
-
-
-
-
-
-
-def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
-
-    start_time = time.time()
+    # Open json files
     with open(gt_json_file, 'r') as f:
         gt_json = json.load(f)
     with open(pred_json_file, 'r') as f:
@@ -358,16 +258,18 @@ def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     for gt_ann in gt_json['annotations']:
         image_id = gt_ann['image_id']
         if image_id not in pred_annotations:
-            #raise Exception('no prediction for the image with id: {}'.format(image_id))
-            continue ###########################################################################################################################ANDREA
+            ##raise Exception('no prediction for the image with id: {}'.format(image_id))
+            print ('!!Evaluation error: no prediction for the image with id: {}'.format(image_id))
         matched_annotations_list.append((gt_ann, pred_annotations[image_id]))
 
+    # Compute statistics
     pq_stat = pq_compute_multi_core(matched_annotations_list, gt_folder, pred_folder, categories)
 
     metrics = [("All", None), ("Things", True), ("Stuff", False)]
     results = {}
     for name, isthing in metrics:
-        results[name], per_class_results = pq_stat.pq_average2(categories, isthing=isthing)
+        # Compute average statistics, with precision and recall
+        results[name], per_class_results = pq_stat.pq_average_pr(categories, isthing=isthing)
         if name == 'All':
             results['per_class'] = per_class_results
     print("{:10s}| {:>5s}  {:>5s}  {:>5s} {:>5s}  {:>5s} {:>5s}".format("", "PQ", "SQ", "RQ", "N","p","r"))
@@ -389,23 +291,18 @@ def pq_compute2(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
 
     return results
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def pq_compute(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
+    """
+    Compute evaluation of panoptic segmentation results, including precision and recall (pr).
+    :param gt_json_file: json file with ground truth annotations
+    :param pred_json_file: json file with panoptic segmentation predictions
+    :param gt_folder: folder with ground truth png annotations
+    :param pred_folder: folder with prediction png annotations
+    :return: details of the evaluation
+    """
 
     start_time = time.time()
+    # Open json files
     with open(gt_json_file, 'r') as f:
         gt_json = json.load(f)
     with open(pred_json_file, 'r') as f:
@@ -435,15 +332,17 @@ def pq_compute(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     for gt_ann in gt_json['annotations']:
         image_id = gt_ann['image_id']
         if image_id not in pred_annotations:
-            raise Exception('no prediction for the image with id: {}'.format(image_id))
-            #continue ###########################################################################################################################ANDREA
+            ##raise Exception('no prediction for the image with id: {}'.format(image_id))
+            print ('!!Evaluation error: no prediction for the image with id: {}'.format(image_id))
         matched_annotations_list.append((gt_ann, pred_annotations[image_id]))
 
+    # Compute statistics
     pq_stat = pq_compute_multi_core(matched_annotations_list, gt_folder, pred_folder, categories)
 
     metrics = [("All", None), ("Things", True), ("Stuff", False)]
     results = {}
     for name, isthing in metrics:
+        # Compute average statistics
         results[name], per_class_results = pq_stat.pq_average(categories, isthing=isthing)
         if name == 'All':
             results['per_class'] = per_class_results
@@ -463,19 +362,3 @@ def pq_compute(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     print("Time elapsed: {:0.2f} seconds".format(t_delta))
 
     return results
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gt_json_file', type=str,
-                        help="JSON file with ground truth data")
-    parser.add_argument('--pred_json_file', type=str,
-                        help="JSON file with predictions data")
-    parser.add_argument('--gt_folder', type=str, default=None,
-                        help="Folder with ground turth COCO format segmentations. \
-                              Default: X if the corresponding json file is X.json")
-    parser.add_argument('--pred_folder', type=str, default=None,
-                        help="Folder with prediction COCO format segmentations. \
-                              Default: X if the corresponding json file is X.json")
-    args = parser.parse_args()
-    pq_compute(args.gt_json_file, args.pred_json_file, args.gt_folder, args.pred_folder)

@@ -2,5 +2,5 @@
 cd ../deepvenv/bin/
 source ./activate
 cd ../../panopticSeg/
-python3 inference.py
+python3 main_inference.py
 deactivate

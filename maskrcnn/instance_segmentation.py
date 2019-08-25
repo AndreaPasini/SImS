@@ -1,5 +1,8 @@
-import matplotlib
+# Andrea Pasini
+# This file contains the class for running: instance segmentation model (MaskRCNN). Trained on COCO THING dataset.
+# Model from library gluoncv (https://gluon-cv.mxnet.io/model_zoo/segmentation.html)
 
+import matplotlib
 from maskrcnn.utils import compress_mask, extract_mask
 
 matplotlib.use('Agg')

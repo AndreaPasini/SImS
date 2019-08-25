@@ -2,5 +2,5 @@
 cd ../deepvenv/bin/
 source ./activate
 cd ../../panopticSeg/
-python3 merge_panoptic.py
+python3 main_merge.py
 deactivate

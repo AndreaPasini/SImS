@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# coding: utf-8
-#
-# Author: Kazuto Nakashima
-# URL:    https://kazuto1011.github.io
-# Date:   07 January 2019
+# Andrea Pasini
+# This file contains the class for running: Semantic segmentation model (DeeplabV2). Trained on COCO STUFF dataset.
+# https://github.com/kazuto1011/deeplab-pytorch
 
 from __future__ import absolute_import, division, print_function
 

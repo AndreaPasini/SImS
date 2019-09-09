@@ -107,3 +107,12 @@ def load_png_annotation(img_path):
     """
     pan_pred = np.array(Image.open(img_path), dtype=np.uint32)
     return rgb2id(pan_pred)
+
+def load_panoptic_categories(categories_json_file):
+    """
+    :param categories_json_file: json file with panoptic categories (e.g. './classes/panoptic_coco_categories.json')
+    :return: a list of dictionaries with category information
+    """
+    with open(categories_json_file, 'r') as f:
+        categories_list = json.load(f)
+    return {el['id']: el for el in categories_list}

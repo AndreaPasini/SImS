@@ -6,6 +6,9 @@
 
 from datetime import datetime
 import os
+from shutil import copyfile
+import sys
+import csv
 from itertools import groupby
 from os import listdir
 import json
@@ -27,7 +30,43 @@ def analyze_image(image_name, segments_info, annot_folder):
     img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
     strings = image2strings(img_ann)
     positions = compute_string_positions(strings)
-    print("done")
+
+    nuovoCodice(image_name, positions)
+
+def nuovoCodice(image_name, positions):
+    elabPath = '../'
+    folderName = elabPath + image_name[:-4]  #nome della cartella corrispondente a quello dell'immagine
+    if not os.path.exists(folderName):
+        os.mkdir(folderName)                #creo una cartella per ogni immagine
+    csvName = folderName+'/'+image_name[:-4]+'.csv' #nome del csv corrispondente a quello dell'immagine
+
+    try:
+        source = '../COCO/annotations/panoptic_val2017/' + image_name
+        dest = folderName + '/' + image_name
+        copyfile(source, dest) # copio l'immagine nella cartella precedentemente creata
+        firstPosition = next(iter(positions.items()))[1] #prendo il primo elemento di positions, è corretto?
+                                                        # oppure bisogna fare la somma di tutti?
+        tupleList = tuple(iterdict(firstPosition)) # converto la lista in tupla per creare una nuova riga nel csv
+
+        columns = 'i on j', 'j on i', 'i above j', 'j above i', 'i around j', 'j around i', 'other' #nomi delle colonne
+        with open(csvName, 'w') as f:           # viene creato e scritto il csv con le etichette relativa al primo elemento
+            writer = csv.writer(f)              # di positions
+            writer.writerow(columns)
+            writer.writerow(tupleList)
+        print("Done.")
+    except:
+        print("Unexpected error:", sys.exc_info())
+        exit(1)
+
+def iterdict(d):
+    list = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            iterdict(v)
+        else:
+            list.append(v)
+    return list
+
 
 def run_tasks(json_file, annot_folder):
     """

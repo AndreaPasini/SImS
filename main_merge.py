@@ -21,7 +21,7 @@ from os import listdir
 import json
 from multiprocessing import Pool
 from maskrcnn.utils import extract_mask_bool
-from panopticapi.utils import IdGenerator, id2rgb
+from panopticapi.utils import IdGenerator, id2rgb, load_panoptic_categories
 
 ### CONFIGURATION ###
 # Folder configuration
@@ -45,10 +45,7 @@ def build_panoptic_area(img_id, output_path, detection_path, segmentation_path):
         os.makedirs(output_path)
 
     #Read categories and create IdGenerator (official panopticapi repository)
-    categories_json_file='./classes/panoptic_coco_categories.json'
-    with open(categories_json_file, 'r') as f:
-        categories_list = json.load(f)
-    categories = {el['id']: el for el in categories_list}
+    categories = load_panoptic_categories('./classes/panoptic_coco_categories.json')
     id_generator = IdGenerator(categories)
 
     #Parameters:

@@ -6,9 +6,11 @@
 
 from datetime import datetime
 import os
-from shutil import copyfile
+from shutil import rmtree
 import sys
 import csv
+import random
+import pandas as pd
 from itertools import groupby
 from os import listdir
 import json
@@ -25,50 +27,62 @@ from semantic_analysis.algorithms import image2strings, compute_string_positions
 def is_on(vector, first_i, first_j):
     return first_i+1==first_j
 
-def analyze_image(image_name, segments_info, annot_folder):
+def analyze_image(image_name, segments_info, image_id, annot_folder, df):
     #Load png annotation
     img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
     strings = image2strings(img_ann)
     positions = compute_string_positions(strings)
+    rand = random.choice(list(positions.keys()))
 
-    nuovoCodice(image_name, positions)
+    img = Image.open('../COCO/annotations/panoptic_val2017'+'/'+image_name)
 
-def nuovoCodice(image_name, positions):
-    elabPath = '../'
-    folderName = elabPath + image_name[:-4]  #nome della cartella corrispondente a quello dell'immagine
-    if not os.path.exists(folderName):
-        os.mkdir(folderName)                #creo una cartella per ogni immagine
-    csvName = folderName+'/'+image_name[:-4]+'.csv' #nome del csv corrispondente a quello dell'immagine
+    subject = rand[0]
+    reference = rand[1]
 
-    try:
-        source = '../COCO/annotations/panoptic_val2017/' + image_name
-        dest = folderName + '/' + image_name
-        copyfile(source, dest) # copio l'immagine nella cartella precedentemente creata
-        firstPosition = next(iter(positions.items()))[1] #prendo il primo elemento di positions, è corretto?
-                                                        # oppure bisogna fare la somma di tutti?
-        tupleList = tuple(iterdict(firstPosition)) # converto la lista in tupla per creare una nuova riga nel csv
+    rS, gS, bS  = convertToRGB(subject)
+    rR, gR, bR  = convertToRGB(reference)
 
-        columns = 'i on j', 'j on i', 'i above j', 'j above i', 'i around j', 'j around i', 'other' #nomi delle colonne
-        with open(csvName, 'w') as f:           # viene creato e scritto il csv con le etichette relativa al primo elemento
-            writer = csv.writer(f)              # di positions
-            writer.writerow(columns)
-            writer.writerow(tupleList)
-        print("Done.")
-    except:
-        print("Unexpected error:", sys.exc_info())
-        exit(1)
+    img = img.convert('RGBA')
+    dataS = np.array(img)
+    red, green, blue, alpha = dataS.T  # Temporarily unpack the bands for readability
+    # Replace white with yellow... (leaves alpha values alone...)
+    subject_areas = (red == rS) & (green == gS) & (blue == bS)
+    dataS[..., :-1][subject_areas.T] = (128, 128, 0)  # Transpose back needed
+    imgS = Image.fromarray(dataS)
 
-def iterdict(d):
-    list = []
-    for k, v in d.items():
-        if isinstance(v, dict):
-            iterdict(v)
-        else:
-            list.append(v)
-    return list
+    img2 = imgS.convert('RGBA')
+    dataR = np.array(img2)
+    red, green, blue, alpha = dataR.T  # Temporarily unpack the bands for readability
+    # Replace white with blue... (leaves alpha values alone...)
+    reference_areas = (red == rR) & (green == gR) & (blue == bR)
+    dataR[..., :-1][reference_areas.T] = (0, 0, 255)  # Transpose back needed
+    imgR = Image.fromarray(dataR)
+
+    imgR.save('Features/'+image_name, 'PNG')
+
+    df = pd.read_csv("Features/ImageDetails.csv", sep=',', encoding="utf-8")
+    df.loc[df.index.max() + 1] = [image_id, subject, reference, '']
+    df.to_csv("Features/ImageDetails.csv", index=False)
 
 
-def run_tasks(json_file, annot_folder):
+def convertToRGB(decimalColor):
+    b = decimalColor & 255
+    g = (decimalColor >> 8) & 255
+    r = (decimalColor >> 16) & 255
+    return b, g, r
+
+def inizializeCSV():
+    if not os.path.exists('Features/'):
+        os.mkdir('Features')
+    else:
+        rmtree('Features')
+        os.mkdir('Features')
+    data = {'image_id': [], 'Subject': [], 'Reference': [], 'Position': []}
+    df = pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'Position'])
+    df.to_csv('Features/ImageDetails.csv', index=None, header=True)
+    return df
+
+def run_tasks(json_file, annot_folder, df):
     """
     Run tasks: analyze training annotations
     :param json_file: annotation file with classes for each segment
@@ -78,8 +92,11 @@ def run_tasks(json_file, annot_folder):
     with open(json_file, 'r') as f:
         json_data = json.load(f)
         annot_dict = {}
+        id_dict = {}
         for img_ann in json_data['annotations']:
             annot_dict[img_ann['file_name']]=img_ann['segments_info']
+        for img_ann in json_data['annotations']:
+            id_dict[img_ann['file_name']]=img_ann['image_id']
     #Get files to be analyzed
     files = sorted(listdir(annot_folder))
 
@@ -93,7 +110,7 @@ def run_tasks(json_file, annot_folder):
 
     pool = Pool(num_processes)
     for img in files:
-        pool.apply_async(analyze_image, args=(img, annot_dict[img], annot_folder), callback=update)
+        pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder, df), callback=update)
     pool.close()
     pool.join()
     pbar.close()
@@ -122,7 +139,8 @@ if __name__ == "__main__":
 
     #TODO: use training images, instead of validation
     input_images = '../COCO/images/val2017/'
-    run_tasks('../COCO/annotations/panoptic_val2017.json', '../COCO/annotations/panoptic_val2017')
+    df = inizializeCSV()
+    run_tasks('../COCO/annotations/panoptic_val2017.json', '../COCO/annotations/panoptic_val2017', df)
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

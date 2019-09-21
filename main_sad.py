@@ -36,21 +36,14 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     subject = rand[0][0] #yellow
     reference = rand[0][1] #blue
 
-    trainingRow = [image_id, subject, reference, '']
-    addRowinCSV("Training/ImageDetails.csv", trainingRow)
     featuresRow = [image_id, subject, reference] + extractDict(rand[1])
-    addRowinCSV("Training/Features.csv", featuresRow)
 
     imgSub = changeColor(img, convertToRGB(subject), True)
     imgRef = changeColor(imgSub, convertToRGB(reference), False)
-    imgRef.save('Training/' + image_name, 'PNG')
+    imgRef.save('../COCO/positionDataset/training/' + image_name, 'PNG')
 
     print("Done")
-
-def addRowinCSV(path, row):
-    df = pd.read_csv(path, sep=';', encoding="utf-8")
-    df.loc[df.index.max() + 1] = row
-    df.to_csv(path, sep=';', index=False)
+    return featuresRow
 
 def changeColor(img, rgbSub, firstImage):
     img = img.convert('RGBA')
@@ -73,24 +66,12 @@ def convertToRGB(decimalColor):
     r = (decimalColor >> 16) & 255
     return (b, g, r)
 
-def inizializeCSV():
-    if not os.path.exists('Training'):
-        os.mkdir('Training')
+def inizializePath():
+    if not os.path.exists('../COCO/positionDataset/training'):
+        os.mkdir('../COCO/positionDataset/training')
     else:
-        rmtree('Training')
-        os.mkdir('Training')
-
-    data = {'image_id': [], 'Subject': [], 'Reference': [], 'Position': []}
-    df = pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'Position'])
-    df.to_csv('Training/ImageDetails.csv', sep=';', index=None, header=True)
-    print("Create ImageDetails.csv")
-
-    dataFeatures = {'image_id': [], 'Subject': [], 'Reference': [], 'i on j': [], 'j on i': [], 'i above j': [],
-                    'j above i': [], 'i around j': [], 'j around i': [], 'other': []}
-    df = pd.DataFrame(dataFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
-                                             'j above i', 'i around j', 'j around i', 'other'])
-    df.to_csv('Training/Features.csv', sep=';', index=None, header=True)
-    print("Create Features.csv")
+        rmtree('../COCO/positionDataset/training')
+        os.mkdir('../COCO/positionDataset/training')
 
 def run_tasks(json_file, annot_folder):
     """
@@ -118,13 +99,32 @@ def run_tasks(json_file, annot_folder):
 
     print("Number of images: %d" % len(files))
     print("Scheduling tasks...")
-
     pool = Pool(num_processes)
+    datasetFeatures = []
+    result = []
     for img in files:
-        pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder), callback=update)
+        result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder), callback=update))
     pool.close()
     pool.join()
+
+    for img in result:
+        datasetFeatures.append(img.get())
+
+    df = pd.DataFrame(datasetFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
+                                             'j above i', 'i around j', 'j around i', 'other'])
+    df.to_csv('../COCO/positionDataset/training/Features.csv', sep=';', index=None, header=True)
+    print("Create Features.csv")
+
+    imageDetails = []
+    for array in datasetFeatures:
+        imageDetails.append(array[:3] + [""])
+
+    df = pd.DataFrame(imageDetails, columns=['image_id', 'Subject', 'Reference', 'Position'])
+    df.to_csv('../COCO/positionDataset/training/ImageDetails.csv', sep=';', index=None, header=True)
+    print("Create ImageDetails.csv")
+
     pbar.close()
+
     print("Done")
 
 
@@ -141,15 +141,13 @@ def example2():
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
-
 if __name__ == "__main__":
     start_time = datetime.now()
     chunck_size = 10  # number of images processed for each task
     num_processes = 10  # number of processes where scheduling tasks
-
     # TODO: use training images, instead of validation
     input_images = '../COCO/images/val2017/'
-    inizializeCSV()
+    inizializePath()
     run_tasks('../COCO/annotations/panoptic_val2017.json', '../COCO/annotations/panoptic_val2017')
     end_time = datetime.now()
     print("Done.")

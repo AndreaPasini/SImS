@@ -10,18 +10,27 @@ from shutil import rmtree
 import random
 import pandas as pd
 from os import listdir
+import numpy as np
 import json
 from tqdm import tqdm
 from multiprocessing import Pool
 from panopticapi.utils import load_png_annotation
 from image_analysis.ImageProcessing import getImage
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_predict
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+
+from sklearn.metrics import confusion_matrix
+from sklearn import svm
+from sklearn.model_selection import LeaveOneOut
+from sklearn import tree
+
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.algorithms import image2strings, compute_string_positions
 
 def is_on(vector, first_i, first_j):
     return first_i + 1 == first_j
-
 
 def analyze_image(image_name, segments_info, image_id, annot_folder):
     # Load png annotation
@@ -31,6 +40,7 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     rand = random.choice(list(positions.items()))
     getImage(image_name, img_ann, rand)
     featuresRow = [image_id, rand[0][0], rand[0][1]] + extractDict(rand[1])
+
 
     print("Done")
 
@@ -120,6 +130,35 @@ def example2():
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
+def classificator():
+    data = pd.read_csv('../COCO/Features.csv', sep=';')
+    data_img = pd.read_csv('../COCO/ImageDetails.csv', sep=';')
+    svc = tree.DecisionTreeClassifier()
+
+    X = np.array(data[["Subject", "Reference", "i on j",	"j on i",	"i above j", 	"j above i", 	"i around j", 	"j around i", 	"other"]])
+    y = np.array(data_img["Position"])
+
+    loo = LeaveOneOut()
+    y_pred = cross_val_predict(svc, X, y, cv=loo)
+
+    precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
+    column_names = np.unique(y)
+
+    matrix_precision = np.reshape(precision, (1, precision.size))
+    df_precision = pd.DataFrame(matrix_precision, columns=column_names, index=['Precision'])
+    matrix_recall = np.reshape(recall, (1, recall.size))
+    df_recall = pd.DataFrame(matrix_recall, columns=column_names, index=['Recall   '])
+
+    print(df_precision)
+    print(df_recall)
+
+    conf_mat = confusion_matrix(y, y_pred)
+    conf_mat_df = pd.DataFrame(conf_mat)
+    conf_mat_df.index.name = 'Actual'
+    conf_mat_df.columns.name = 'Predicted'
+    print("      ")
+    print(conf_mat_df)
+
 if __name__ == "__main__":
     start_time = datetime.now()
     chunck_size = 10  # number of images processed for each task
@@ -127,6 +166,7 @@ if __name__ == "__main__":
     # TODO: use training images, instead of validation
     input_images = '../COCO/images/train2017/'
     inizializePath()
+    #classificator()
     run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
     end_time = datetime.now()
     print("Done.")

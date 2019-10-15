@@ -19,15 +19,22 @@ from image_analysis.ImageProcessing import getImage
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import matplotlib.pyplot as plt
 
 from sklearn.metrics import confusion_matrix
-from sklearn import svm
 from sklearn.model_selection import LeaveOneOut
 from sklearn import tree
 
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.algorithms import image2strings, compute_string_positions
+from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures
+
+### CONFIGURATION ###
+path = '../COCO/positionDataset/training'
+use_classifier = True
+use_create_folder = False
+### CONFIGURATION ###
+
 
 def is_on(vector, first_i, first_j):
     return first_i + 1 == first_j
@@ -39,8 +46,10 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     positions = compute_string_positions(strings)
     rand = random.choice(list(positions.items()))
     getImage(image_name, img_ann, rand)
-    featuresRow = [image_id, rand[0][0], rand[0][1]] + extractDict(rand[1])
-
+    subject = rand[0][0]
+    reference = rand[0][1]
+    featuresRow = [image_id, subject, reference] + extractDict(rand[1])
+    featuresRow.extend(getSideFeatures(img_ann, subject, reference))
 
     print("Done")
 
@@ -53,11 +62,11 @@ def extractDict(d):
     return features
 
 def inizializePath():
-    if not os.path.exists('../COCO/positionDataset/training'):
-        os.mkdir('../COCO/positionDataset/training')
+    if not os.path.exists(path):
+        os.mkdir(path)
     else:
-        rmtree('../COCO/positionDataset/training')
-        os.mkdir('../COCO/positionDataset/training')
+        rmtree(path)
+        os.mkdir(path)
 
 def run_tasks(json_file, annot_folder):
     """
@@ -105,8 +114,8 @@ def createCSV(result):
         datasetFeatures.append(img.get())
 
     df = pd.DataFrame(datasetFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
-                                                'j above i', 'i around j', 'j around i', 'other'])
-    df.to_csv('../COCO/positionDataset/training/Features.csv', sep=';', index=None, header=True)
+                                                'j above i', 'i around j', 'j around i', 'other', 'deltaY1', 'deltaY2', 'deltaX1', 'deltaX2'])
+    df.to_csv(path+'/Features.csv', sep=';', index=None, header=True)
     print("Create Features.csv")
 
     imageDetails = []
@@ -114,7 +123,7 @@ def createCSV(result):
         imageDetails.append(array[:3] + [""])
 
     df = pd.DataFrame(imageDetails, columns=['image_id', 'Subject', 'Reference', 'Position'])
-    df.to_csv('../COCO/positionDataset/training/ImageDetails.csv', sep=';', index=None, header=True)
+    df.to_csv(path+'/ImageDetails.csv', sep=';', index=None, header=True)
     print("Create ImageDetails.csv")
 
 def example2():
@@ -130,13 +139,15 @@ def example2():
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
-def classificator():
+def classifier():
     data = pd.read_csv('../COCO/Features.csv', sep=';')
     data_img = pd.read_csv('../COCO/ImageDetails.csv', sep=';')
     svc = tree.DecisionTreeClassifier()
 
-    X = np.array(data[["Subject", "Reference", "i on j",	"j on i",	"i above j", 	"j above i", 	"i around j", 	"j around i", 	"other"]])
+    X = np.array(data[["Subject", "Reference", "i on j", "j on i", "i above j", "j above i", "i around j", "j around i", "other", 'deltaY1', 'deltaY2', 'deltaX1', 'deltaX2']])
     y = np.array(data_img["Position"])
+
+    plt.hist(y)
 
     loo = LeaveOneOut()
     y_pred = cross_val_predict(svc, X, y, cv=loo)
@@ -146,11 +157,12 @@ def classificator():
 
     matrix_precision = np.reshape(precision, (1, precision.size))
     df_precision = pd.DataFrame(matrix_precision, columns=column_names, index=['Precision'])
+
     matrix_recall = np.reshape(recall, (1, recall.size))
     df_recall = pd.DataFrame(matrix_recall, columns=column_names, index=['Recall   '])
 
-    print(df_precision)
-    print(df_recall)
+    print(df_precision.head().to_string())
+    print(df_recall.head().to_string())
 
     conf_mat = confusion_matrix(y, y_pred)
     conf_mat_df = pd.DataFrame(conf_mat)
@@ -165,9 +177,12 @@ if __name__ == "__main__":
     num_processes = 10  # number of processes where scheduling tasks
     # TODO: use training images, instead of validation
     input_images = '../COCO/images/train2017/'
-    inizializePath()
-    #classificator()
-    run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
+    if use_classifier:
+        classifier()
+    elif use_create_folder:
+        inizializePath()
+        run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
+
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

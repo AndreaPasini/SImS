@@ -27,12 +27,12 @@ from sklearn import tree
 
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures
+from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures, getWidthSubject
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
-use_classifier = True
-use_create_folder = False
+use_classifier = False
+use_create_folder = True
 ### CONFIGURATION ###
 
 
@@ -48,17 +48,18 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     getImage(image_name, img_ann, rand)
     subject = rand[0][0]
     reference = rand[0][1]
-    featuresRow = [image_id, subject, reference] + extractDict(rand[1])
+    widthSub = getWidthSubject(img_ann, subject)
+    featuresRow = [image_id, subject, reference] + extractDict(rand[1], widthSub)
     featuresRow.extend(getSideFeatures(img_ann, subject, reference))
 
     print("Done")
 
     return featuresRow
 
-def extractDict(d):
+def extractDict(d, widthSub):
     features = []
     for k, v in d.items():
-        features.append(v)
+        features.append(v/widthSub)
     return features
 
 def inizializePath():

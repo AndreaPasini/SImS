@@ -128,17 +128,17 @@ def getSideFeatures(img_ann, subject, reference):
     img_height = img_ann.shape[0]
     img_width = img_ann.shape[1]
 
-    boxSub_top = np.amin(bboxSubject[[0, 0], [0, 2]]) / img_height * 100
-    boxSub_bottom = np.amax(bboxSubject[[0, 0], [0, 2]]) / img_height * 100
-    boxRef_top = np.amin(bboxReference[[0, 0], [0, 2]]) / img_height * 100
-    boxRef_bottom = np.amax(bboxReference[[0, 0], [0, 2]]) / img_height * 100
+    boxSub_top = bboxSubject[0, 0] / img_height
+    boxSub_bottom = bboxSubject[0, 2] / img_height
+    boxRef_top = bboxReference[0, 0] / img_height
+    boxRef_bottom = bboxReference[0, 2] / img_height
 
-    boxSub_left = np.amin([bboxSubject[0][1], bboxSubject[0][3]]) / img_width * 100
-    boxSub_right = np.amax([bboxSubject[0][1], bboxSubject[0][3]]) / img_width * 100
-    boxRef_left = np.amin([bboxReference[0][1], bboxReference[0][3]]) / img_width * 100
-    boxRef_right = np.amax([bboxReference[0][1], bboxReference[0][3]]) / img_width * 100
+    boxSub_left = bboxSubject[0][1] / img_width
+    boxSub_right = bboxSubject[0][3] / img_width
+    boxRef_left = bboxReference[0][1] / img_width
+    boxRef_right = bboxReference[0][3] / img_width
 
-    return [boxSub_bottom - boxSub_top, boxRef_bottom - boxRef_top, boxSub_right - boxSub_left, boxRef_right - boxRef_left]
+    return [boxSub_top - boxRef_bottom, boxRef_top - boxSub_bottom, boxSub_left - boxRef_right, boxRef_left - boxSub_right]
 
 def getBbox(img_ann, object):
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)
@@ -146,6 +146,11 @@ def getBbox(img_ann, object):
     _idx = np.sum(mask, axis=(0, 1)) > 0
     mask = mask[:, :, _idx]
     return extract_bboxes(mask)
-    return extract_bboxes(mask)
+
+def getWidthSubject(img_ann, subject):
+    bboxSubject = getBbox(img_ann, subject)
+    boxSub_left = bboxSubject[0][1]
+    boxSub_right = bboxSubject[0][3]
+    return boxSub_right - boxSub_left
 
 

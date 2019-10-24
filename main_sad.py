@@ -45,7 +45,7 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     strings = image2strings(img_ann)
     positions = compute_string_positions(strings)
     rand = random.choice(list(positions.items()))
-    getImage(image_name, img_ann, rand)
+    getImage(image_name, img_ann, rand)     # Save image with subject and reference
     subject = rand[0][0]
     reference = rand[0][1]
     widthSub = getWidthSubject(img_ann, subject)

@@ -6,7 +6,7 @@ pyximport.install(language_level=3)
 
 
 def getImage(image_name, img_ann, rand):
-
+    """ Save image with colored subject and reference. """
     subject = rand[0][0]  # blue
     reference = rand[0][1]  # yellow
 

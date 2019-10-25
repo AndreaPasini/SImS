@@ -12,16 +12,28 @@ import pandas as pd
 from os import listdir
 import numpy as np
 import json
+
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
 from multiprocessing import Pool
+import seaborn as sns
 from panopticapi.utils import load_png_annotation
 from image_analysis.ImageProcessing import getImage
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_predict
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from sklearn.metrics import  precision_recall_fscore_support
+from sklearn.svm import SVC
 import matplotlib.pyplot as plt
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 from sklearn.model_selection import LeaveOneOut
 from sklearn import tree
 
@@ -31,8 +43,8 @@ from semantic_analysis.algorithms import image2strings, compute_string_positions
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
-use_classifier = False
-use_create_folder = True
+use_classifier = True
+use_create_folder = False
 ### CONFIGURATION ###
 
 
@@ -51,9 +63,6 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     widthSub = getWidthSubject(img_ann, subject)
     featuresRow = [image_id, subject, reference] + extractDict(rand[1], widthSub)
     featuresRow.extend(getSideFeatures(img_ann, subject, reference))
-
-    print("Done")
-
     return featuresRow
 
 def extractDict(d, widthSub):
@@ -95,12 +104,14 @@ def run_tasks(json_file, annot_folder):
 
     print("Number of images: %d" % len(files))
     print("Scheduling tasks...")
+    imageDf = pd.DataFrame()
+    if os.path.isfile(path + '/Features.csv'):
+        imageDf = pd.read_csv(path+"/Features.csv", usecols=['image_id'], sep=';')
     pool = Pool(num_processes)
-
     result = []
     for img in files:
-        result.append(
-            pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder), callback=update))
+        if (id_dict[img] not in imageDf.values):
+            result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder), callback=update))
     pool.close()
     pool.join()
 
@@ -113,19 +124,24 @@ def createCSV(result):
     datasetFeatures = []
     for img in result:
         datasetFeatures.append(img.get())
-
-    df = pd.DataFrame(datasetFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
-                                                'j above i', 'i around j', 'j around i', 'other', 'deltaY1', 'deltaY2', 'deltaX1', 'deltaX2'])
-    df.to_csv(path+'/Features.csv', sep=';', index=None, header=True)
+    dfFeatures = pd.DataFrame(datasetFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
+                                                'j above i', 'i around j', 'j around i', 'other', 'deltaY1',
+                                                'deltaY2', 'deltaX1', 'deltaX2'])
+    checkCSV(path + '/Features.csv', dfFeatures)
     print("Create Features.csv")
 
     imageDetails = []
     for array in datasetFeatures:
         imageDetails.append(array[:3] + [""])
-
-    df = pd.DataFrame(imageDetails, columns=['image_id', 'Subject', 'Reference', 'Position'])
-    df.to_csv(path+'/ImageDetails.csv', sep=';', index=None, header=True)
+    dfImageDetails = pd.DataFrame(imageDetails, columns=['image_id', 'Subject', 'Reference', 'Position'])
+    checkCSV(path + '/ImageDetails.csv', dfImageDetails)
     print("Create ImageDetails.csv")
+
+def checkCSV(nameCSV, df):
+    if not os.path.isfile(nameCSV):
+        df.to_csv(nameCSV, sep=';', index=None, header=True)
+    else:
+        df.to_csv(nameCSV, sep=';', mode='a', index=None, header=False)
 
 def example2():
     start_time = datetime.now()
@@ -140,19 +156,23 @@ def example2():
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
-def classifier():
-    data = pd.read_csv('../COCO/Features.csv', sep=';')
-    data_img = pd.read_csv('../COCO/ImageDetails.csv', sep=';')
-    svc = tree.DecisionTreeClassifier()
+def getHistogram(data):
+    hist = data
+    hist.head()
+    print(hist.shape)
+    print(hist['Position'].unique())
+    print(hist.groupby('Position').size())
+    sns.countplot(hist['Position'], label="Count")
 
-    X = np.array(data[["Subject", "Reference", "i on j", "j on i", "i above j", "j above i", "i around j", "j around i", "other", 'deltaY1', 'deltaY2', 'deltaX1', 'deltaX2']])
-    y = np.array(data_img["Position"])
+def getConfusionMatrix(y, y_pred):
+    conf_mat = confusion_matrix(y, y_pred)
+    conf_mat_df = pd.DataFrame(conf_mat)
+    conf_mat_df.index.name = 'Actual'
+    conf_mat_df.columns.name = 'Predicted'
+    print("      ")
+    print(conf_mat_df)
 
-    plt.hist(y)
-
-    loo = LeaveOneOut()
-    y_pred = cross_val_predict(svc, X, y, cv=loo)
-
+def getAccuracy(y, y_pred):
     precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
     column_names = np.unique(y)
 
@@ -162,15 +182,45 @@ def classifier():
     matrix_recall = np.reshape(recall, (1, recall.size))
     df_recall = pd.DataFrame(matrix_recall, columns=column_names, index=['Recall   '])
 
-    print(df_precision.head().to_string())
-    print(df_recall.head().to_string())
+    matrix_f1 = np.reshape(f1, (1, f1.size))
+    df_f1 = pd.DataFrame(matrix_f1, columns=column_names, index=['F1        '])
 
-    conf_mat = confusion_matrix(y, y_pred)
-    conf_mat_df = pd.DataFrame(conf_mat)
-    conf_mat_df.index.name = 'Actual'
-    conf_mat_df.columns.name = 'Predicted'
-    print("      ")
-    print(conf_mat_df)
+    #print(df_precision.head().to_string())
+    #print(df_recall.head().to_string())
+    print(df_f1.head().to_string())
+    print("     ")
+
+def getClassifier():
+    data = pd.read_csv('../COCO/Features.csv', sep=';')
+    data_img = pd.read_csv('../COCO/ImageDetails.csv', sep=';')
+
+    getHistogram(data_img)
+
+    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
+    y = np.array(data_img["Position"])
+
+    X = StandardScaler().fit_transform(X)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+    classifier = LeaveOneOut()
+
+    names = ["Nearest Neighbors", "Linear SVM", "RBF SVM",
+             "Decision Tree", "Random Forest", "Neural Net",
+             "Naive Bayes"]
+    classifiers = [
+        KNeighborsClassifier(3),
+        SVC(kernel="linear", C=0.025),
+        SVC(gamma=2, C=1),
+        DecisionTreeClassifier(max_depth=5),
+        RandomForestClassifier(max_depth=5, n_estimators=100, random_state=0),
+        MLPClassifier(alpha=1, max_iter=1000),
+        GaussianNB()]
+
+    for nameClf, clf in zip(names, classifiers):
+        print(nameClf)
+        clf.fit(X_train, y_train)
+        y_pred = cross_val_predict(clf, X, y, cv=classifier)
+        getAccuracy(y, y_pred)
 
 if __name__ == "__main__":
     start_time = datetime.now()
@@ -179,9 +229,9 @@ if __name__ == "__main__":
     # TODO: use training images, instead of validation
     input_images = '../COCO/images/train2017/'
     if use_classifier:
-        classifier()
+        getClassifier()
     elif use_create_folder:
-        inizializePath()
+        #inizializePath()
         run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
 
     end_time = datetime.now()

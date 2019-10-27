@@ -200,7 +200,7 @@ def getClassifier():
     y = np.array(data_img["Position"])
 
     X = StandardScaler().fit_transform(X)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)        #TODO: la cross-validation divide gia' X in training e test set
 
     classifier = LeaveOneOut()
 
@@ -218,7 +218,7 @@ def getClassifier():
 
     for nameClf, clf in zip(names, classifiers):
         print(nameClf)
-        clf.fit(X_train, y_train)
+        clf.fit(X_train, y_train)                                   #TODO: la fit non serve perche' cross_val_predict addestra gia' 1 modello per ogni partizione della cross-validation (vedi slides scikit-learn)
         y_pred = cross_val_predict(clf, X, y, cv=classifier)
         getAccuracy(y, y_pred)
 

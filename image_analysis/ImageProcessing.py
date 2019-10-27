@@ -6,14 +6,19 @@ pyximport.install(language_level=3)
 
 
 def getImage(image_name, img_ann, rand):
-    """ Save image with colored subject and reference. """
+    """
+    Save image with colored subject and reference. Used to
+    :param image_name: file name of the
+    :param img_ann: numpy pixel annotation of the image (object ids).
+    :param rand: contains ids of subject and reference
+    """
     subject = rand[0][0]  # blue
     reference = rand[0][1]  # yellow
 
     rgbReference = [254, 204, 92]
     rgbSubject = [8, 81, 156]
 
-    img = Image.open('../COCO/images/train2017' + '/' + image_name[:-3] + 'jpg').convert('L')
+    img = Image.open('../COCO/images/train2017' + '/' + image_name[:-3] + 'jpg').convert('L')   #TODO: '../COCO/images/train2017' lo passerei come parametro di getImage
 
     stacked_img = np.stack((np.array(img),) * 3, axis=-1)
     mask = getMask(img_ann, subject)
@@ -22,7 +27,7 @@ def getImage(image_name, img_ann, rand):
     stacked_img[mask == True] = rgbReference
 
     image = Image.fromarray(stacked_img, 'RGB')
-    image.save('../COCO/positionDataset/training/' + image_name, 'PNG')
+    image.save('../COCO/positionDataset/training/' + image_name, 'PNG')         #TODO: '../COCO/positionDataset/training/' lo passerei come parametro di getImage
 
     print("Done")
 

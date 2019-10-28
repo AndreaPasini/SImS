@@ -19,6 +19,7 @@ from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
+from PIL import Image, ImageTk
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
@@ -26,11 +27,13 @@ from multiprocessing import Pool
 import seaborn as sns
 from panopticapi.utils import load_png_annotation
 from image_analysis.ImageProcessing import getImage
+from image_analysis.SetFeatures import setFeatures
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import  precision_recall_fscore_support
 from sklearn.svm import SVC
+
 import matplotlib.pyplot as plt
 
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
@@ -46,6 +49,8 @@ path = '../COCO/positionDataset/training'
 use_classifier = True
 use_create_folder = False
 ### CONFIGURATION ###
+
+
 
 
 def is_on(vector, first_i, first_j):
@@ -77,6 +82,10 @@ def inizializePath():
     else:
         rmtree(path)
         os.mkdir(path)
+
+def setGroundTruth():
+    setFeatures()
+
 
 def run_tasks(json_file, annot_folder):
     """
@@ -191,8 +200,8 @@ def getAccuracy(y, y_pred):
     print("     ")
 
 def getClassifier():
-    data = pd.read_csv('../COCO/Features.csv', sep=';')
-    data_img = pd.read_csv('../COCO/ImageDetails.csv', sep=';')
+    data = pd.read_csv(path + '/Features.csv', sep=';')
+    data_img = pd.read_csv(path + '/ImageDetails.csv', sep=';')
 
     getHistogram(data_img)
 
@@ -232,8 +241,8 @@ if __name__ == "__main__":
         getClassifier()
     elif use_create_folder:
         #inizializePath()
-        run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
-
+        #run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
+        setGroundTruth()
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

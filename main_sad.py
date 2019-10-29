@@ -27,7 +27,7 @@ from multiprocessing import Pool
 import seaborn as sns
 from panopticapi.utils import load_png_annotation
 from image_analysis.ImageProcessing import getImage
-from image_analysis.SetFeatures import setFeatures
+from image_analysis.SetFeatures import setFeatures, getImageName
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_predict
@@ -46,8 +46,10 @@ from semantic_analysis.algorithms import image2strings, compute_string_positions
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
-use_classifier = True
-use_create_folder = False
+pathImageDetail = path + '/ImageDetails.csv'
+pathFeatures = path + '/Features.csv'
+use_classifier = False
+use_create_folder = True
 ### CONFIGURATION ###
 
 
@@ -83,10 +85,6 @@ def inizializePath():
         rmtree(path)
         os.mkdir(path)
 
-def setGroundTruth():
-    setFeatures()
-
-
 def run_tasks(json_file, annot_folder):
     """
     Run tasks: analyze training annotations
@@ -114,8 +112,8 @@ def run_tasks(json_file, annot_folder):
     print("Number of images: %d" % len(files))
     print("Scheduling tasks...")
     imageDf = pd.DataFrame()
-    if os.path.isfile(path + '/Features.csv'):
-        imageDf = pd.read_csv(path+"/Features.csv", usecols=['image_id'], sep=';')
+    if os.path.isfile(pathFeatures):
+        imageDf = pd.read_csv(pathFeatures, usecols=['image_id'], sep=';')
     pool = Pool(num_processes)
     result = []
     for img in files:
@@ -136,14 +134,14 @@ def createCSV(result):
     dfFeatures = pd.DataFrame(datasetFeatures, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
                                                 'j above i', 'i around j', 'j around i', 'other', 'deltaY1',
                                                 'deltaY2', 'deltaX1', 'deltaX2'])
-    checkCSV(path + '/Features.csv', dfFeatures)
+    checkCSV(pathFeatures, dfFeatures)
     print("Create Features.csv")
 
     imageDetails = []
     for array in datasetFeatures:
         imageDetails.append(array[:3] + [""])
     dfImageDetails = pd.DataFrame(imageDetails, columns=['image_id', 'Subject', 'Reference', 'Position'])
-    checkCSV(path + '/ImageDetails.csv', dfImageDetails)
+    checkCSV(pathImageDetail, dfImageDetails)
     print("Create ImageDetails.csv")
 
 def checkCSV(nameCSV, df):
@@ -200,8 +198,8 @@ def getAccuracy(y, y_pred):
     print("     ")
 
 def getClassifier():
-    data = pd.read_csv(path + '/Features.csv', sep=';')
-    data_img = pd.read_csv(path + '/ImageDetails.csv', sep=';')
+    data = pd.read_csv(pathFeatures, sep=';')
+    data_img = pd.read_csv(pathImageDetail, sep=';')
 
     getHistogram(data_img)
 
@@ -209,10 +207,7 @@ def getClassifier():
     y = np.array(data_img["Position"])
 
     X = StandardScaler().fit_transform(X)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)        #TODO: la cross-validation divide gia' X in training e test set
-
     classifier = LeaveOneOut()
-
     names = ["Nearest Neighbors", "Linear SVM", "RBF SVM",
              "Decision Tree", "Random Forest", "Neural Net",
              "Naive Bayes"]
@@ -225,11 +220,27 @@ def getClassifier():
         MLPClassifier(alpha=1, max_iter=1000),
         GaussianNB()]
 
-    for nameClf, clf in zip(names, classifiers):
-        print(nameClf)
-        clf.fit(X_train, y_train)                                   #TODO: la fit non serve perche' cross_val_predict addestra gia' 1 modello per ogni partizione della cross-validation (vedi slides scikit-learn)
-        y_pred = cross_val_predict(clf, X, y, cv=classifier)
-        getAccuracy(y, y_pred)
+    try:
+        for nameClf, clf in zip(names, classifiers):
+            print(nameClf)
+            y_pred = cross_val_predict(clf, X, y, cv=classifier)
+            getAccuracy(y, y_pred)
+    except ValueError as e:
+        print(e)
+
+def createFolderByClass():
+    df = pd.read_csv(pathImageDetail, usecols=["image_id", "Position"], sep=';')
+    for index, row in df.iterrows():
+        imageSource = getImageName(row[0], path)
+        if os.path.isfile(imageSource):
+            classPath =path+"/"+row[1]
+            imageDestination = getImageName(row[0], classPath)
+            if not os.path.exists(classPath):
+                os.mkdir(classPath)
+            try:
+                os.rename(imageSource, imageDestination)
+            except FileNotFoundError as e:
+                print(e)
 
 if __name__ == "__main__":
     start_time = datetime.now()
@@ -241,8 +252,9 @@ if __name__ == "__main__":
         getClassifier()
     elif use_create_folder:
         #inizializePath()
-        #run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
-        setGroundTruth()
+        run_tasks('../COCO/annotations/panoptic_train2017.json', '../COCO/annotations/panoptic_train2017')
+        setFeatures()
+        createFolderByClass()
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

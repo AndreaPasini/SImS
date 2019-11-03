@@ -1,5 +1,6 @@
 import tkinter as tk
 import os
+import numpy as np
 import pandas as pd
 from tkinter.ttk import Combobox
 from PIL import Image, ImageTk
@@ -23,8 +24,9 @@ def setFeatures():
     try:
         if os.path.isfile(pathImageDetail):
             df = pd.read_csv(pathImageDetail, sep=';')
+            df = df.replace(np.nan, '', regex=True)
             for index, row in df.iterrows():
-                if (pd.isnull(row[3])):
+                if (row[3] == ''):
                     image = getImageName(row[0], path)
                     img = Image.open(image)
                     render = ImageTk.PhotoImage(img)
@@ -37,11 +39,13 @@ def setFeatures():
                     button = tk.Button(window, text='Add', fg='blue', command=lambda: callback(df, index, img, window, cb))
                     button.config(width=20)
                     button.place(x=730, y=230)
-                    window.title('Choose Label')
+                    window.title(image)
                     window.geometry("1000x500+10+10")
                     window.mainloop()
     except FileNotFoundError as e:
         print(image + ' Not found')
+    except AttributeError as e:
+        print(e)
 
 
 #TODO svuotare template immagine e dropdown

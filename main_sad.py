@@ -56,7 +56,7 @@ fileModel = '../COCO/output/finalized_model.sav'
 path_json_file = '../COCO/annotations/panoptic_train2017.json'
 path_annot_folder = '../COCO/annotations/panoptic_train2017'
 input_images = '../COCO/images/train2017/'
-n_features = 8
+n_features = 5
 chunck_size = 10  # number of images processed for each task
 num_processes = 10  # number of processes where scheduling tasks
 ######################
@@ -72,7 +72,7 @@ Naive_Bayes = False
 
 ###  CHOOSE FLOW ###
 use_create_dataset = False
-set_ground_truth = False
+set_ground_truth = True
 set_balanced_dataset = False
 select_best_classifier = False
 build_classifier = False
@@ -293,7 +293,7 @@ def createFolderByClass():
     for index, row in df.iterrows():
         imageSource = getImageName(row[0], path)
         if os.path.isfile(imageSource):
-            classPath = path + "/" + row[1]
+            classPath = path + "/" + str(row[1])
             imageDestination = getImageName(row[0], classPath)
             if not os.path.exists(classPath):
                 os.mkdir(classPath)
@@ -304,8 +304,10 @@ def createFolderByClass():
 
 
 def createBalancedDataset():
-    os.remove(pathImageDetailBalanced)
-    os.remove(pathFeaturesBalanced)
+    if os.path.isfile(pathImageDetailBalanced):
+        os.remove(pathImageDetailBalanced)
+    if os.path.isfile(pathFeaturesBalanced):
+        os.remove(pathFeaturesBalanced)
     dirlist = [item for item in os.listdir(path) if os.path.isdir(os.path.join(path, item))]
 
     for elem in dirlist:
@@ -354,8 +356,8 @@ if __name__ == "__main__":
         run_tasks(path_json_file, path_annot_folder)
     elif set_ground_truth:
         setFeatures()
-        #createFolderByClass()
     elif set_balanced_dataset:
+        createFolderByClass()
         createBalancedDataset()
     elif select_best_classifier:
         getClassifier(None)

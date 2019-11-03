@@ -6,9 +6,9 @@ from PIL import Image, ImageTk
 
 path = '../COCO/positionDataset/training'
 pathImageDetail = path + '/ImageDetails.csv'
-window = tk.Tk()
+
 data = ("on", "hanging", "above", "below", "inside", "around", "side", "side-up", "side-down")
-cb = Combobox(window, values=data)
+
 Positions = pd.Series([])
 
 def getImageName(imageId, pathFile):
@@ -18,6 +18,8 @@ def getImageName(imageId, pathFile):
     return image
 
 def setFeatures():
+    window = tk.Tk()
+    cb = Combobox(window, values=data)
     try:
         if os.path.isfile(pathImageDetail):
             df = pd.read_csv(pathImageDetail, sep=';')
@@ -32,7 +34,7 @@ def setFeatures():
                     label = tk.Label(window, text='Choose the correct label: ')
                     label.place(x=730, y=160)
                     cb.place(x=730, y=180)
-                    button = tk.Button(window, text='Add', fg='blue', command=lambda: callback(df, index))
+                    button = tk.Button(window, text='Add', fg='blue', command=lambda: callback(df, index, img, window, cb))
                     button.config(width=20)
                     button.place(x=730, y=230)
                     window.title('Choose Label')
@@ -43,9 +45,11 @@ def setFeatures():
 
 
 #TODO svuotare template immagine e dropdown
-def callback(df, index):
+def callback(df, index, img, window, cb):
     val = cb.get()
     Positions[index] = val
     df.at[index, 'Position'] = val
     df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+    img.config(image='')
+    cb.set('')
     window.quit()

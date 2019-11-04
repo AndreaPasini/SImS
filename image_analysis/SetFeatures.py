@@ -44,6 +44,8 @@ def setFeatures():
                     window.mainloop()
     except FileNotFoundError as e:
         print(image + ' Not found')
+    except RuntimeError as e:
+        print(e)
     except AttributeError as e:
         print(e)
 

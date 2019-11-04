@@ -138,7 +138,7 @@ def getSideFeatures(img_ann, subject, reference):
     boxRef_left = bboxReference[0][1] / img_width
     boxRef_right = bboxReference[0][3] / img_width
 
-    return [boxSub_top - boxRef_bottom, boxRef_top - boxSub_bottom, boxSub_left - boxRef_right, boxRef_left - boxSub_right]
+    return [boxRef_bottom - boxSub_top, boxRef_top - boxSub_bottom, boxRef_right - boxSub_left, boxRef_left - boxSub_right]
 
 def getBbox(img_ann, object):
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)

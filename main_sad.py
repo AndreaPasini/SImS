@@ -3,48 +3,35 @@
  This file provides the code for Semantic Anomaly Detection (SAD) on COCO.
 
 """
-import math
 from datetime import datetime
 import os
 import random
 import pandas as pd
 from os import listdir
-import shutil
 import numpy as np
 import json
 import easygui
-
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.gaussian_process import GaussianProcessClassifier
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from PIL import Image, ImageTk
-from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
 from multiprocessing import Pool
 import seaborn as sns
 from panopticapi.utils import load_png_annotation
 from image_analysis.ImageProcessing import getImage
-from image_analysis.SetFeatures import setFeatures, getImageName
+from image_analysis.DatasetUtils import createFolderByClass
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.svm import SVC
 import pickle
-
-import matplotlib.pyplot as plt
-
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 from sklearn.model_selection import LeaveOneOut
-from sklearn import tree
-
 import pyximport
-
-pyximport.install(language_level=3)
 from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures, getWidthSubject
+pyximport.install(language_level=3)
+
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
@@ -53,11 +40,13 @@ pathImageDetailBalanced = path + '/ImageDetailsBalance.csv'
 pathFeaturesBalanced = path + '/FeaturesBalanced.csv'
 pathFeaturesScatterplot = path + '/FeaturesScatterplot.csv'
 pathFeatures = path + '/Features.csv'
+groundPathImage = path + "/" + "groundTruth"
+classifierPathImage = path + "/" + "classifier"
 fileModel = '../COCO/output/finalized_model.clf'
 path_json_file = '../COCO/annotations/panoptic_train2017.json'
 path_annot_folder = '../COCO/annotations/panoptic_train2017'
 input_images = '../COCO/images/train2017/'
-n_features = 10 # number of images for each class
+n_features = 10  # number of images for each class
 chunck_size = 10  # number of images processed for each task
 num_processes = 10  # number of processes where scheduling tasks
 ######################
@@ -73,8 +62,6 @@ Naive_Bayes = False
 
 ###  CHOOSE FLOW ###
 use_create_dataset = False
-set_ground_truth = False
-create_folder_by_class = False
 create_balanced_dataset = False
 select_best_classifier = False
 build_classifier = False
@@ -83,6 +70,7 @@ use_classifier = False
 
 def is_on(vector, first_i, first_j):
     return first_i + 1 == first_j
+
 
 def analyze_image(image_name, segments_info, image_id, annot_folder):
     # Load png annotation
@@ -97,6 +85,7 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     featuresRow = [image_id, subject, reference] + extractDict(rand[1], widthSub)
     featuresRow.extend(getSideFeatures(img_ann, subject, reference))
     return featuresRow
+
 
 def extractDict(d, widthSub):
     features = []
@@ -176,6 +165,7 @@ def checkCSV(nameCSV, df):
     else:
         df.to_csv(nameCSV, sep=';', mode='a', index=None, header=False)
 
+
 def example2():
     start_time = datetime.now()
 
@@ -189,6 +179,7 @@ def example2():
     print("Done.")
     print('Duration: ' + str(end_time - start_time))
 
+
 def getHistogram(data):
     hist = data
     hist.head()
@@ -196,6 +187,7 @@ def getHistogram(data):
     print(hist['Position'].unique())
     print(hist.groupby('Position').size())
     sns.countplot(hist['Position'], label="Count")
+
 
 def getConfusionMatrix(y, y_pred):
     conf_mat = confusion_matrix(y, y_pred)
@@ -205,17 +197,15 @@ def getConfusionMatrix(y, y_pred):
     print("      ")
     print(conf_mat_df)
 
+
 def getAccuracy(y, y_pred, nameClf, dfAccuracy):
     precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
     column_names = np.unique(y)
-    #matrix_precision = np.reshape(precision, (1, precision.size))
-    #df_precision = pd.DataFrame(matrix_precision, columns=column_names, index=['Precision'])
-    #matrix_recall = np.reshape(recall, (1, recall.size))
-    #df_recall = pd.DataFrame(matrix_recall, columns=column_names, index=['Recall   '])
     matrix_f1 = np.reshape(f1, (1, f1.size))
     df_f1 = pd.DataFrame(matrix_f1, columns=column_names, index=[nameClf])
     dfAccuracy = dfAccuracy.append(df_f1)
     return dfAccuracy
+
 
 def checkClassifier():
     classifier = [Nearest_Neighbors,
@@ -232,6 +222,7 @@ def checkClassifier():
         getClassifier(index)
     else:
         easygui.msgbox("You must choose only a classifier!", title="Classifier")
+
 
 def getClassifier(index):
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
@@ -260,6 +251,7 @@ def getClassifier(index):
         if index is not None:
             y_pred = cross_val_predict(classifiers[index], X, y, cv=cv)
             data_img["Classifier"] = y_pred
+            createFolderByClass("Classifier")
             data_img.to_csv(pathImageDetailBalanced, encoding='utf-8', index=False, sep=';')
             dfAccuracy = getAccuracy(y, y_pred, names[index], dfAccuracy)
             getConfusionMatrix(y, y_pred)
@@ -275,26 +267,10 @@ def getClassifier(index):
     except ValueError as e:
         print(e)
 
+
 def useClassifier():
     loaded_model = pickle.load(open(fileModel, 'rb'))
     print(loaded_model)
-
-def createFolderByClass():
-    df = pd.read_csv(pathImageDetail, usecols=["image_id", "Position"], sep=';')
-    for index, row in df.iterrows():
-        imageSource = getImageName(row[0], path)
-        if os.path.isfile(imageSource):
-            groundPath =  path + "/" +"groundTruth"
-            classPath = groundPath + "/" + str(row[1])
-            imageDestination = getImageName(row[0], classPath)
-            if not os.path.exists(groundPath):
-                os.mkdir(groundPath)
-            if not os.path.exists(classPath):
-                os.mkdir(classPath)
-            try:
-                shutil.copy(imageSource, imageDestination)
-            except FileNotFoundError as e:
-                print(e)
 
 def createBalancedDataset():
     if os.path.isfile(pathImageDetailBalanced):
@@ -323,18 +299,42 @@ def createBalancedDataset():
     getHistogram(pd.read_csv(pathImageDetailBalanced, sep=';'))
     print("ok")
 
+
 def addRowBalancedDataset(dataImg, row, imgId):
     dataImg.extend(np.array([row]))
     imgId.extend(np.array([row[0]]))
     return dataImg, imgId
 
+
 def setDfImageDetails(data):
     return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'Position'])
+
 
 def setDfFeaturs(data):
     return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
                                        'j above i', 'i around j', 'j around i', 'other', 'deltaY1',
                                        'deltaY2', 'deltaX1', 'deltaX2'])
+
+
+def update_labels_from_folder_division():
+    print("Update Images")
+    df = pd.read_csv(pathImageDetail, sep=';')
+    dirList = [item for item in os.listdir(groundPathImage) if os.path.isdir(os.path.join(groundPathImage, item))]
+    for elem in dirList:
+        classPath = groundPathImage + "/" + elem
+        for file in os.listdir(classPath):
+            id = file.lstrip("0").rstrip(".png")
+            row = df.query('image_id == '+id)
+            originalFolder = row['Position'].values[0]
+            if originalFolder == elem:
+                continue
+            else:
+                index = row.index.values
+                df.at[index[0], 'Position'] = elem
+                df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+                print("moved image "+file + " from "+ originalFolder + " to "+elem)
+    print("Update Completed")
+
 
 if __name__ == "__main__":
     start_time = datetime.now()
@@ -343,24 +343,18 @@ if __name__ == "__main__":
     elif use_create_dataset:
         inizializePath()
         run_tasks(path_json_file, path_annot_folder)
-    elif set_ground_truth:
-        setFeatures()
-    elif create_folder_by_class:
-        createFolderByClass()
     elif create_balanced_dataset:
         createBalancedDataset()
     elif select_best_classifier:
         getClassifier(None)
     elif use_classifier:
         useClassifier()
-    else:
+        '''
         sns.set(style="ticks")
         pathFeaturesScatterplotSide = path + '/FeaturesScatterplotSide.csv'
-        pathFeaturesScatterplotOther = path + '/FeaturesScatterplotOther.csv'
         df = pd.read_csv(pathFeaturesScatterplotSide, sep=';')
         sns.pairplot(df, hue="Position")
-        print("boh")
-
+        '''
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

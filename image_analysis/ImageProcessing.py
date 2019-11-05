@@ -35,3 +35,9 @@ def getImage(image_name, img_ann, rand):
 def getMask(img_ann, object):
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)
     return mask
+
+def getImageName(imageId, pathFile):
+    imageid = int(imageId)
+    imageName = f"{imageid:012d}.png"
+    image = pathFile + "/" + imageName
+    return image

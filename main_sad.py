@@ -10,32 +10,26 @@ import pandas as pd
 from os import listdir
 import numpy as np
 import json
-import easygui
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
 from tqdm import tqdm
 from multiprocessing import Pool
 import seaborn as sns
+from image_analysis.DatasetUtils import inizializePath
 from panopticapi.utils import load_png_annotation
-from image_analysis.ImageProcessing import getImage
-from image_analysis.DatasetUtils import createFolderByClass
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import cross_val_predict
-from sklearn.metrics import precision_recall_fscore_support
-from sklearn.svm import SVC
 import pickle
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
-from sklearn.model_selection import LeaveOneOut
 import pyximport
+from image_analysis.ImageProcessing import getImage
 from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures, getWidthSubject
+
+from semantic_analysis.position_classifier import validate_classifiers, build_final_model
+
 pyximport.install(language_level=3)
 
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
 pathImageDetail = path + '/ImageDetails.csv'
+output_path = '../COCO/positionDataset/results/evaluation.txt'
+result_path = '../COCO/positionDataset/results'
 pathImageDetailBalanced = path + '/ImageDetailsBalance.csv'
 pathFeaturesBalanced = path + '/FeaturesBalanced.csv'
 pathFeaturesScatterplot = path + '/FeaturesScatterplot.csv'
@@ -63,10 +57,10 @@ Naive_Bayes = False
 ###  CHOOSE FLOW ###
 use_create_dataset = False
 create_balanced_dataset = False
-select_best_classifier = False
-build_classifier = False
-use_classifier = False
+use_validate_classifiers = False
+use_build_final_model = True
 ####################
+
 
 def is_on(vector, first_i, first_j):
     return first_i + 1 == first_j
@@ -92,11 +86,6 @@ def extractDict(d, widthSub):
     for k, v in d.items():
         features.append(v / widthSub)
     return features
-
-
-def inizializePath():
-    if not os.path.exists(path):
-        os.mkdir(path)
 
 
 def run_tasks(json_file, annot_folder):
@@ -131,7 +120,7 @@ def run_tasks(json_file, annot_folder):
     pool = Pool(num_processes)
     result = []
     for img in files:
-        if (id_dict[img] not in imageDf.values):
+        if id_dict[img] not in imageDf.values:
             result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder),
                                            callback=update))
     pool.close()
@@ -188,86 +177,6 @@ def getHistogram(data):
     print(hist.groupby('Position').size())
     sns.countplot(hist['Position'], label="Count")
 
-
-def getConfusionMatrix(y, y_pred):
-    conf_mat = confusion_matrix(y, y_pred)
-    conf_mat_df = pd.DataFrame(conf_mat)
-    conf_mat_df.index.name = 'Actual'
-    conf_mat_df.columns.name = 'Predicted'
-    print("      ")
-    print(conf_mat_df)
-
-
-def getAccuracy(y, y_pred, nameClf, dfAccuracy):
-    precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
-    column_names = np.unique(y)
-    matrix_f1 = np.reshape(f1, (1, f1.size))
-    df_f1 = pd.DataFrame(matrix_f1, columns=column_names, index=[nameClf])
-    dfAccuracy = dfAccuracy.append(df_f1)
-    return dfAccuracy
-
-
-def checkClassifier():
-    classifier = [Nearest_Neighbors,
-                  Linear_SVM,
-                  RBF_SVM,
-                  Decision_Tree,
-                  Random_Forest,
-                  Naive_Bayes]
-
-    if not any(classifier):
-        easygui.msgbox("You must choose a classifier!", title="Classifier")
-    elif sum(classifier) == 1:
-        index = int(" ".join(str(x) for x in np.argwhere(classifier)[0]))
-        getClassifier(index)
-    else:
-        easygui.msgbox("You must choose only a classifier!", title="Classifier")
-
-
-def getClassifier(index):
-    data = pd.read_csv(pathFeaturesBalanced, sep=';')
-    data_img = pd.read_csv(pathImageDetailBalanced, sep=';')
-
-    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
-    y = np.array(data_img["Position"])
-    dfAccuracy = pd.DataFrame()
-
-    X = StandardScaler().fit_transform(X)
-    cv = LeaveOneOut()
-    names = ["Nearest Neighbors",
-             "Linear SVM",
-             "RBF SVM",
-             "Decision Tree",
-             "Random Forest",
-             "Naive Bayes"]
-    classifiers = [
-        KNeighborsClassifier(3),
-        SVC(kernel="linear", C=0.025),
-        SVC(gamma=2, C=1),
-        DecisionTreeClassifier(max_depth=5),
-        RandomForestClassifier(max_depth=5, n_estimators=100, random_state=0),
-        GaussianNB()]
-    try:
-        if index is not None:
-            y_pred = cross_val_predict(classifiers[index], X, y, cv=cv)
-            data_img["Classifier"] = y_pred
-            createFolderByClass("Classifier")
-            data_img.to_csv(pathImageDetailBalanced, encoding='utf-8', index=False, sep=';')
-            dfAccuracy = getAccuracy(y, y_pred, names[index], dfAccuracy)
-            getConfusionMatrix(y, y_pred)
-        else:
-            for nameClf, clf in zip(names, classifiers):
-                print(nameClf)
-                y_pred = cross_val_predict(clf, X, y, cv=cv)
-                dfAccuracy = getAccuracy(y, y_pred, nameClf, dfAccuracy)
-            dfAccuracy.plot.bar()
-            dfAccuracy['mean'] = dfAccuracy.mean(axis=1)
-        print(dfAccuracy.head().to_string())
-        pickle.dump(y_pred, open(fileModel, 'wb'))
-    except ValueError as e:
-        print(e)
-
-
 def useClassifier():
     loaded_model = pickle.load(open(fileModel, 'rb'))
     print(loaded_model)
@@ -278,10 +187,12 @@ def createBalancedDataset():
     if os.path.isfile(pathFeaturesBalanced):
         os.remove(pathFeaturesBalanced)
 
-    dirList = [item for item in os.listdir(path) if os.path.isdir(os.path.join(path, item))]
+    dirList = [item for item in os.listdir(groundPathImage) if os.path.isdir(os.path.join(groundPathImage, item))]
 
     for elem in dirList:
-        classPath = path + "/" + elem
+        if elem == 'DOUBT':
+            continue
+        classPath = groundPathImage + "/" + elem
         dataImg = []
         dataFea = []
         imgId = []
@@ -338,23 +249,24 @@ def update_labels_from_folder_division():
 
 if __name__ == "__main__":
     start_time = datetime.now()
-    if build_classifier:
-        checkClassifier()
-    elif use_create_dataset:
-        inizializePath()
+    classifier = [Nearest_Neighbors,
+                  Linear_SVM,
+                  RBF_SVM,
+                  Decision_Tree,
+                  Random_Forest,
+                  Naive_Bayes]
+    if use_create_dataset:
+        inizializePath(path)
         run_tasks(path_json_file, path_annot_folder)
     elif create_balanced_dataset:
         createBalancedDataset()
-    elif select_best_classifier:
-        getClassifier(None)
-    elif use_classifier:
-        useClassifier()
-        '''
-        sns.set(style="ticks")
-        pathFeaturesScatterplotSide = path + '/FeaturesScatterplotSide.csv'
-        df = pd.read_csv(pathFeaturesScatterplotSide, sep=';')
-        sns.pairplot(df, hue="Position")
-        '''
+    elif use_validate_classifiers:
+        inizializePath(result_path)
+        validate_classifiers(output_path)
+    elif use_build_final_model:
+        inizializePath(result_path)
+        build_final_model(classifier)
+
     end_time = datetime.now()
     print("Done.")
     print('Duration: ' + str(end_time - start_time))

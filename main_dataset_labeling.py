@@ -20,7 +20,7 @@ Positions = pd.Series([])
 
 ############ ACTION ###########
 action = 'LABELS_FROM_FOLDERS'
-#action = 'LABELING_GUI = False
+#action = 'LABELING_GUI'
 ###############################
 
 
@@ -39,8 +39,8 @@ def update_labels_from_folder_division():
             else:
                 index = row.index.values
                 df.at[index[0], 'Position'] = elem
-                df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
-                print("moved image " + file + " from " + originalFolder + " to " + elem)
+                print("moved image " + file + " from " + str(originalFolder) + " to " + elem)
+    df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
     print("Update Completed")
 
 

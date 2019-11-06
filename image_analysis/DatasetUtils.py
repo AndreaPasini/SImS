@@ -32,3 +32,7 @@ def createFolderByClass(column):
                 shutil.copy(imageSource, imageDestination)
             except FileNotFoundError as e:
                 print(e)
+
+def inizializePath(path):
+    if not os.path.exists(path):
+        os.mkdir(path)

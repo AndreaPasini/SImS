@@ -1,6 +1,5 @@
 import numpy as np
 from PIL import Image
-
 import pyximport
 pyximport.install(language_level=3)
 
@@ -35,6 +34,7 @@ def getImage(image_name, img_ann, rand):
 def getMask(img_ann, object):
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)
     return mask
+
 
 def getImageName(imageId, pathFile):
     imageid = int(imageId)

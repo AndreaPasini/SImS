@@ -37,9 +37,11 @@ images_load = 10  # number of images to load
 #####################
 
 ############ ACTION ###########
-action = 'LABELS_FROM_FOLDERS'
-#action = 'LABELING_GUI'
+#action = 'LABELS_FROM_FOLDERS'
+action = 'LABELING_GUI'
 #action = 'ADD_NEW_IMAGES'
+
+
 ###############################
 
 
@@ -144,10 +146,12 @@ def run_tasks(json_file, annot_folder):
     result = []
     for img in files:
         if id_dict[img] not in imageDf.values:
-            result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder),
-                                           callback=update))
-    pool.close()
-    pool.join()
+            if len(result) == images_load:
+                pool.close()
+                pool.join()
+            else:
+                result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder),
+                                               callback=update))
 
     createCSV(result)
 
@@ -232,10 +236,10 @@ def update_labels_from_folder_division():
             if originalFolder == elem:
                 continue
             else:
-                index = row.index.values
-                df.at[index[0], 'Position'] = elem
-                df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+                index = row.index.values[0]
+                df.at[index, 'Position'] = elem
                 print("moved image " + file + " from " + originalFolder + " to " + elem)
+    df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
     print("Update Completed")
 
 
@@ -286,16 +290,19 @@ def createFolderByClass(column):
     for index, row in df.iterrows():
         imageSource = getImageName(row[0], path)
         if os.path.isfile(imageSource):
-            classPath = pathImage + "/" + str(row[1])
-            imageDestination = getImageName(row[0], classPath)
-            if not os.path.exists(pathImage):
-                os.mkdir(pathImage)
-            if not os.path.exists(classPath):
-                os.mkdir(classPath)
-            try:
-                shutil.copy(imageSource, imageDestination)
-            except FileNotFoundError as e:
-                print(e)
+            if str(row[1]) == 'nan':
+                continue
+            else:
+                classPath = pathImage + "/" + str(row[1])
+                imageDestination = getImageName(row[0], classPath)
+                if not os.path.exists(pathImage):
+                    os.mkdir(pathImage)
+                if not os.path.exists(classPath):
+                    os.mkdir(classPath)
+                try:
+                    shutil.copy(imageSource, imageDestination)
+                except FileNotFoundError as e:
+                    print(e)
 
 
 def inizializePath(path):
@@ -308,13 +315,15 @@ if __name__ == "__main__":
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
 
     if action == 'ADD_NEW_IMAGES':
-        inizializePath(path)
+        # inizializePath(path)
         add_new_images()
+        createBalancedDataset()
     elif action == 'LABELS_FROM_FOLDERS':
         update_labels_from_folder_division()
     elif action == 'LABELING_GUI':
         labeling_gui()
         createFolderByClass("Position")
+        createBalancedDataset()
 
     end_time = datetime.now()
     print("Done.")

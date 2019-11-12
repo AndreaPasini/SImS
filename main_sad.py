@@ -24,7 +24,7 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = False
+use_validate_classifiers = True
 use_build_final_model = False
 ####################
 

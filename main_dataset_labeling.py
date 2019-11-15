@@ -14,7 +14,7 @@ from tqdm import tqdm
 import random
 from image_analysis.ImageProcessing import getImageName, getImage
 from panopticapi.utils import load_png_annotation
-from semantic_analysis.algorithms import image2strings, compute_string_positions, getSideFeatures, getWidthSubject
+from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
 from sklearn.utils import shuffle
 
 ### CONFIGURATION ###
@@ -111,24 +111,6 @@ def createCSV(result, filterSideImages=False):
 
     update_csv(pathGroundTruth, dfGroundTruth)
     print("Create ImageDetails.csv")
-
-
-
-def get_features(img_ann, image_id, subject, reference, positions):
-    """
-    Get features vector from a pair of object
-    :param img_ann: numpy array with png annotation (from load_png_annotation() )
-    :param image_id: identifier of the image (filename without .png)
-    :param subject: subject id
-    :param reference: reference id
-    :param positions: positions extracted with compute_string_positions(strings)
-    :return: the feature vector
-    """
-    pos = positions[(subject, reference)]
-    subjectWidth = getWidthSubject(img_ann, subject)
-    featuresRow = [image_id, subject, reference] + [v / subjectWidth for k,v in pos.items()] + getSideFeatures(img_ann, subject, reference)
-    return featuresRow
-
 
 
 def analyze_image(image_name, image_id, annot_folder):

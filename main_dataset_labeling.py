@@ -18,36 +18,52 @@ from semantic_analysis.algorithms import image2strings, compute_string_positions
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
-pathImageDetail = path + '/ImageDetails.csv'
 groundPathImage = path + "/" + "groundTruth"
 path = '../COCO/positionDataset/training'
 path_json_file = '../COCO/annotations/panoptic_train2017.json'
 path_annot_folder = '../COCO/annotations/panoptic_train2017'
-pathImageDetailBalanced = path + '/ImageDetailsBalance.csv'
-pathFeaturesBalanced = path + '/FeaturesBalanced.csv'
-pathFeatures = path + '/Features.csv'
-pathImageDetail = path + '/ImageDetails.csv'
+
+
 result_path = '../COCO/positionDataset/results'
-data = ("on", "hanging", "above", "below", "inside", "around", "side", "side-up", "side-down")
-Positions = pd.Series([])
+
+
+# List of labels to be recognized
+position_labels = tuple(s.strip() for s in open('../COCO/positionDataset/training/LabelsList.csv').readlines())
+
+# Feature matrix for object position computation
+pathFeatures = path + '/Features.csv'
+pathFeaturesBalanced = path + '/FeaturesBalanced.csv'
+# Ground truth labels for object position computation
+pathGroundTruth = path + '/GroundTruth.csv'
+pathGroundTruthBalanced = path + '/GroundTruthBalanced.csv'
+
 num_processes = 10  # number of processes where scheduling tasks
 n_features = 10  # number of images for each class
-chunck_size = 10  # number of images processed for each task
-images_load = 10  # number of images to load
+
 #####################
 
 ############ ACTION ###########
-#action = 'LABELS_FROM_FOLDERS'
-action = 'LABELING_GUI'
+# This file allows creating a dataset for object positions.
+# Each sample of the dataset consists of an image for which an object pair is considered.
+# The label associated to a sample corresponds to the relative position of the object pair.
+
+# Add new unlabeled samples to the dataset. These new samples must be labeled with 'LABELING_GUI' functionality.
+num_new_images = 500     # number of new images to add to the dataset
+filterSideImages = True # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
 #action = 'ADD_NEW_IMAGES'
+# Use this Graphic Interface to manually set ground truth labels to unlabeled samples
+action = 'LABELING_GUI'
+# Use this method to update ground truth labels of dataset samples, according to their position into folders.
+# Before using this method you have to move the sample images to the folder with the correct label (e.g. move samples
+# with "on" label to the "on" folder)
+#action = 'LABELS_FROM_FOLDERS'
 
 
 ###############################
 
-
 def update_labels_from_folder_division():
     print("Update Images")
-    df = pd.read_csv(pathImageDetail, sep=';')
+    df = pd.read_csv(pathGroundTruth, sep=';')
     dirList = [item for item in os.listdir(groundPathImage) if os.path.isdir(os.path.join(groundPathImage, item))]
     for elem in dirList:
         classPath = groundPathImage + "/" + elem
@@ -61,36 +77,38 @@ def update_labels_from_folder_division():
                 index = row.index.values
                 df.at[index[0], 'Position'] = elem
                 print("moved image " + file + " from " + str(originalFolder) + " to " + elem)
-    df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+    df.to_csv(pathGroundTruth, encoding='utf-8', index=False, sep=';')
     print("Update Completed")
 
 
 def labeling_gui():
     window = tk.Tk()
-    cb = Combobox(window, values=data)
+    cb = Combobox(window, values=position_labels+('Discard',))
     try:
-        if os.path.isfile(pathImageDetail):
-            df = pd.read_csv(pathImageDetail, sep=';')
+        if os.path.isfile(pathGroundTruth):
+            df = pd.read_csv(pathGroundTruth, sep=';')
             df = df.replace(np.nan, '', regex=True)
-            for index, row in df.iterrows():
-                if (row[3] == ''):
-                    image = getImageName(row[0], path)
-                    img = Image.open(image)
-                    render = ImageTk.PhotoImage(img)
-                    img = tk.Label(image=render)
-                    img.image = render
-                    img.place(x=0, y=0)
-                    label = tk.Label(window, text='Choose the correct label: ')
-                    label.place(x=730, y=160)
-                    cb.place(x=730, y=180)
-                    button = tk.Button(window, text='Add', fg='blue',
-                                       command=lambda: callback(df, index, img, window, cb))
-                    button.config(width=20)
-                    button.config(width=20)
-                    button.place(x=730, y=230)
-                    window.title(image)
-                    window.geometry("1000x500+10+10")
-                    window.mainloop()
+            dfFeatures = pd.read_csv(pathFeatures, sep=';')
+            dfSelected = df[df.iloc[:, 3] == ''].copy()
+            for index, row in dfSelected.iterrows():
+                image = getImageName(row[0], path)
+                img = Image.open(image)
+                render = ImageTk.PhotoImage(img)
+                img = tk.Label(image=render)
+                img.image = render
+                img.place(x=0, y=0)
+                label = tk.Label(window, text='Choose the correct label: ')
+                label.place(x=730, y=160)
+                cb.place(x=730, y=180)
+                cb.current(len(position_labels))
+                button = tk.Button(window, text='Add', fg='blue',
+                                   command=lambda: callback(df, dfFeatures, index, img, window, cb))
+                button.config(width=20)
+                button.config(width=20)
+                button.place(x=730, y=230)
+                window.title(image)
+                window.geometry("1000x800+10+10")
+                window.mainloop()
     except FileNotFoundError as e:
         print(image + ' Not found')
     except RuntimeError as e:
@@ -99,18 +117,20 @@ def labeling_gui():
         print(e)
 
 
-def callback(df, index, img, window, cb):
+def callback(dfGroundTruth, dfFeatures, index, img, window, cb):
+    """ React to confirmation of class label from the user GUI """
     val = cb.get()
-    Positions[index] = val
-    df.at[index, 'Position'] = val
-    df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+    if val != 'Discard':
+        dfGroundTruth.at[index, 'Position'] = val
+        dfGroundTruth.to_csv(pathGroundTruth, encoding='utf-8', index=False, sep=';')
+    else:
+        dfGroundTruth.drop(index, inplace=True)
+        dfFeatures.drop(index, inplace=True)
+        dfGroundTruth.to_csv(pathGroundTruth, encoding='utf-8', index=False, sep=';')
+        dfFeatures.to_csv(pathFeatures, encoding='utf-8', index=False, sep=';')
     img.config(image='')
     cb.set('')
     window.quit()
-
-
-def add_new_images():
-    run_tasks(path_json_file, path_annot_folder)
 
 
 def run_tasks(json_file, annot_folder):
@@ -132,7 +152,7 @@ def run_tasks(json_file, annot_folder):
     files = sorted(listdir(annot_folder))
 
     # Init progress bar
-    pbar = tqdm(total=len(files))
+    pbar = tqdm(total=num_new_images)
 
     def update(x):
         pbar.update()
@@ -146,14 +166,16 @@ def run_tasks(json_file, annot_folder):
     result = []
     for img in files:
         if id_dict[img] not in imageDf.values:
-            if len(result) == images_load:
+            if len(result) == num_new_images:
                 pool.close()
                 pool.join()
+                break
             else:
                 result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], annot_folder),
                                                callback=update))
 
-    createCSV(result)
+    # Save features matrix and prepare csv for annotations
+    createCSV(result, filterSideImages)
 
     pbar.close()
     print("Done")
@@ -175,32 +197,45 @@ def analyze_image(image_name, segments_info, image_id, annot_folder):
     featuresRow.extend(getSideFeatures(img_ann, subject, reference))
     return featuresRow
 
+def set_ground_truth_header(data):
+    return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'Position'])
 
-def createCSV(result):
+
+def set_features_matrix_header(data):
+    return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
+                                       'j above i', 'i around j', 'j around i', 'other', 'deltaY1',
+                                       'deltaY2', 'deltaX1', 'deltaX2'])
+
+def createCSV(result, filterSideImages=False):
+    """
+    Given the list of results from Pool processes, extract results and save image features.
+    dfFeatures contains the feature extraction results for computing relative object positions inside images.
+    dfImageDetails contains the ground truth labels
+    """
     datasetFeatures = []
     for img in result:
         if img.get() is not None:
             datasetFeatures.append(img.get())
-    dfFeatures = setDfFeatures(datasetFeatures)
-    checkCSV(pathFeatures, dfFeatures)
+    dfFeatures = set_features_matrix_header(datasetFeatures)
+
+    groundTruth = []
+    for array in datasetFeatures:
+        groundTruth.append(array[:3] + [""])
+    dfGroundTruth = set_ground_truth_header(groundTruth)
+
+    if filterSideImages:
+        overlapped_df = dfFeatures[['i on j','j on i', 'i above j', 'j above i', 'i around j', 'j around i', 'other']]
+        overlapped_df = overlapped_df.sum(axis=1)
+        mask_side = overlapped_df<=0.2
+        dfFeatures = dfFeatures[mask_side]
+        dfGroundTruth = dfGroundTruth[mask_side]
+
+    update_csv(pathFeatures, dfFeatures)
     print("Create Features.csv")
 
-    imageDetails = []
-    for array in datasetFeatures:
-        imageDetails.append(array[:3] + [""])
-    dfImageDetails = setDfImageDetails(imageDetails)
-    checkCSV(pathImageDetail, dfImageDetails)
+
+    update_csv(pathGroundTruth, dfGroundTruth)
     print("Create ImageDetails.csv")
-
-
-def setDfImageDetails(data):
-    return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'Position'])
-
-
-def setDfFeatures(data):
-    return pd.DataFrame(data, columns=['image_id', 'Subject', 'Reference', 'i on j', 'j on i', 'i above j',
-                                       'j above i', 'i around j', 'j around i', 'other', 'deltaY1',
-                                       'deltaY2', 'deltaX1', 'deltaX2'])
 
 
 def extractDict(d, widthSub):
@@ -210,7 +245,8 @@ def extractDict(d, widthSub):
     return features
 
 
-def checkCSV(nameCSV, df):
+def update_csv(nameCSV, df):
+    """ Write dataframe to file, append if already existing. """
     if not os.path.isfile(nameCSV):
         df.to_csv(nameCSV, sep=';', index=None, header=True)
     else:
@@ -225,13 +261,17 @@ def addRowBalancedDataset(dataImg, row, imgId):
 
 def update_labels_from_folder_division():
     print("Update Images")
-    df = pd.read_csv(pathImageDetail, sep=';')
+    df = pd.read_csv(pathGroundTruth, sep=';')
     dirList = [item for item in os.listdir(groundPathImage) if os.path.isdir(os.path.join(groundPathImage, item))]
+
     for elem in dirList:
         classPath = groundPathImage + "/" + elem
         for file in os.listdir(classPath):
             id = file.lstrip("0").rstrip(".png")
-            row = df.query('image_id == ' + id)
+            row = df.query('image_id=='+id)
+            if row.shape[0]==0:
+                os.remove(classPath+"/"+file)
+                continue
             originalFolder = row['Position'].values[0]
             if originalFolder == elem:
                 continue
@@ -239,7 +279,7 @@ def update_labels_from_folder_division():
                 index = row.index.values[0]
                 df.at[index, 'Position'] = elem
                 print("moved image " + file + " from " + originalFolder + " to " + elem)
-    df.to_csv(pathImageDetail, encoding='utf-8', index=False, sep=';')
+    df.to_csv(pathGroundTruth, encoding='utf-8', index=False, sep=';')
     print("Update Completed")
 
 
@@ -253,8 +293,8 @@ def getHistogram(data):
 
 
 def createBalancedDataset():
-    if os.path.isfile(pathImageDetailBalanced):
-        os.remove(pathImageDetailBalanced)
+    if os.path.isfile(pathGroundTruthBalanced):
+        os.remove(pathGroundTruthBalanced)
     if os.path.isfile(pathFeaturesBalanced):
         os.remove(pathFeaturesBalanced)
 
@@ -263,29 +303,33 @@ def createBalancedDataset():
     for elem in dirList:
         if elem == 'DOUBT':
             continue
-        classPath = groundPathImage + "/" + elem
+
         dataImg = []
         dataFea = []
         imgId = []
-        n_elem = len([name for name in os.listdir(classPath) if os.path.isfile(os.path.join(classPath, name))])
-        dfImg = pd.read_csv(pathImageDetail, sep=';')
+
+        dfImg = pd.read_csv(pathGroundTruth, sep=';')
         for index, row in dfImg.iterrows():
             if row[3] == elem and len(dataImg) != n_features:
                 dataImg, imgId = addRowBalancedDataset(dataImg, row, imgId)
-        checkCSV(pathImageDetailBalanced, setDfImageDetails(dataImg))
+        update_csv(pathGroundTruthBalanced, set_ground_truth_header(dataImg))
         dfFea = pd.read_csv(pathFeatures, sep=';')
         for index, row in dfFea.iterrows():
             if int(row[0]) in imgId:
                 dataFea.extend(np.array([row]))
-        checkCSV(pathFeaturesBalanced, setDfFeatures(dataFea))
-    getHistogram(pd.read_csv(pathImageDetailBalanced, sep=';'))
+        update_csv(pathFeaturesBalanced, set_features_matrix_header(dataFea))
+    getHistogram(pd.read_csv(pathGroundTruthBalanced, sep=';'))
     print("ok")
 
 
-def createFolderByClass(column):
+def moveImagesToLabelFolders(column):
+    """
+    Read generated ground truth annotations and divide images into folders according to their labels.
+    This operation is useful for visualizing if labeling is correct
+    """
     if column == 'Position':
         pathImage = groundPathImage
-        file = pathImageDetail
+        file = pathGroundTruth
     df = pd.read_csv(file, usecols=["image_id", column], sep=';')
     for index, row in df.iterrows():
         imageSource = getImageName(row[0], path)
@@ -300,7 +344,8 @@ def createFolderByClass(column):
                 if not os.path.exists(classPath):
                     os.mkdir(classPath)
                 try:
-                    shutil.copy(imageSource, imageDestination)
+                    if not os.path.isfile(imageDestination):
+                        shutil.move(imageSource, imageDestination)
                 except FileNotFoundError as e:
                     print(e)
 
@@ -315,15 +360,14 @@ if __name__ == "__main__":
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
 
     if action == 'ADD_NEW_IMAGES':
-        # inizializePath(path)
-        add_new_images()
-        createBalancedDataset()
+        run_tasks(path_json_file, path_annot_folder)
     elif action == 'LABELS_FROM_FOLDERS':
         update_labels_from_folder_division()
     elif action == 'LABELING_GUI':
         labeling_gui()
-        createFolderByClass("Position")
-        createBalancedDataset()
+        moveImagesToLabelFolders("Position")
+
+
 
     end_time = datetime.now()
     print("Done.")

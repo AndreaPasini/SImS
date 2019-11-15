@@ -28,7 +28,6 @@ def getImage(image_name, img_ann, rand):
     image = Image.fromarray(stacked_img, 'RGB')
     image.save('../COCO/positionDataset/training/' + image_name, 'PNG')         #TODO: '../COCO/positionDataset/training/' lo passerei come parametro di getImage
 
-    print("Done")
 
 
 def getMask(img_ann, object):

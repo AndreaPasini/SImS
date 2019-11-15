@@ -16,7 +16,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 
-from main_dataset_labeling import pathImageDetailBalanced, pathFeaturesBalanced
+from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 
 pyximport.install(language_level=3)
 
@@ -35,7 +35,7 @@ def checkClassifier(classifier):
 def validate_classifiers(output_path):
     inizializePath(result_path)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
-    data_img = pd.read_csv(pathImageDetailBalanced, sep=';')
+    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
     y = np.array(data_img["Position"])
@@ -81,7 +81,7 @@ def getClassifiers():
 def build_final_model(fileModel, classifier):
     inizializePath(result_path)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
-    data_img = pd.read_csv(pathImageDetailBalanced, sep=';')
+    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
     y = np.array(data_img["Position"])

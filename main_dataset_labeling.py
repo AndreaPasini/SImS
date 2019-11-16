@@ -47,8 +47,8 @@ num_processes = 10  # number of processes where scheduling tasks
 # The label associated to a sample corresponds to the relative position of the object pair.
 
 # 1. Add new unlabeled samples to the dataset. These new samples must be labeled with 'LABELING_GUI' functionality.
-num_new_images = 50     # number of new images to add to the dataset
-filterSideImages = True # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
+num_new_images = 200    # number of new images to add to the dataset
+filterSideImages = False # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
 #action = 'ADD_NEW_IMAGES'
 # 2. Use this Graphic Interface to manually set ground truth labels to unlabeled samples
 #action = 'LABELING_GUI'
@@ -60,8 +60,8 @@ filterSideImages = True # true if you want to obtain (more likely) side images t
 # Given samples and labels in the ground truth file, re-create the features matrix file by computing again features
 #action = 'RECOMPUTE_FEATURES'
 # 5. Use this method when the labeling process is complete. This will create a balanced dataset with the specified number of images for each class
-num_img_by_class = 10  # number of images for each class
-action = 'CREATE_BALANCED_DATASET'
+num_img_by_class = 50  # number of images for each class
+#action = 'CREATE_BALANCED_DATASET'
 
 ###############################
 
@@ -99,9 +99,9 @@ def createCSV(result, filterSideImages=False):
     dfGroundTruth = set_ground_truth_header(groundTruth)
 
     if filterSideImages:
-        overlapped_df = dfFeatures[['i on j','j on i', 'i above j', 'j above i', 'i around j', 'j around i', 'other']]
+        overlapped_df = dfFeatures[['i on j','j on i', 'i above j', 'j above i', 'i around j', 'j around i']]
         overlapped_df = overlapped_df.sum(axis=1)
-        mask_side = overlapped_df<=0.2
+        mask_side = overlapped_df<=0.1
         dfFeatures = dfFeatures[mask_side]
         dfGroundTruth = dfGroundTruth[mask_side]
 
@@ -121,6 +121,7 @@ def analyze_image(image_name, image_id, annot_folder):
     if not positions:
         return
     rand = random.choice(list(positions.items()))
+
     getImage(image_name, img_ann, rand)  # Save image with subject and reference
     subject = rand[0][0]
     reference = rand[0][1]
@@ -171,7 +172,7 @@ def add_new_images(json_file, annot_folder):
         for img_ann in json_data['annotations']:
             id_dict[img_ann['file_name']] = img_ann['image_id']
     # Get files to be analyzed
-    files = sorted(listdir(annot_folder))
+    files = shuffle(sorted(listdir(annot_folder)))#############################################################
 
     # Init progress bar
     pbar = tqdm(total=num_new_images)

@@ -147,11 +147,11 @@ def getBbox(img_ann, object):
     mask = mask[:, :, _idx]
     return extract_bboxes(mask)
 
-def getWidthSubject(img_ann, subject):
-    bboxSubject = getBbox(img_ann, subject)
-    boxSub_left = bboxSubject[0][1]
-    boxSub_right = bboxSubject[0][3]
-    return boxSub_right - boxSub_left
+def getWidth(img_ann, object_id):
+    bbox = getBbox(img_ann, object_id)
+    box_left = bbox[0][1]
+    box_right = bbox[0][3]
+    return box_right - box_left
 
 
 def get_features(img_ann, image_id, subject, reference, positions):
@@ -165,6 +165,7 @@ def get_features(img_ann, image_id, subject, reference, positions):
     :return: the feature vector
     """
     pos = positions[(subject, reference)]
-    subjectWidth = getWidthSubject(img_ann, subject)
-    featuresRow = [image_id, subject, reference] + [v / subjectWidth for k,v in pos.items()] + getSideFeatures(img_ann, subject, reference)
+    subjectWidth = getWidth(img_ann, subject)
+    referenceWidth = getWidth(img_ann, reference)
+    featuresRow = [image_id, subject, reference] + [v / min(subjectWidth, referenceWidth) for k,v in pos.items()] + getSideFeatures(img_ann, subject, reference)
     return featuresRow

@@ -73,7 +73,8 @@ def getClassifiers():
         SVC(kernel="linear", C=0.025),
         SVC(gamma=2, C=1),
         DecisionTreeClassifier(max_depth=5),
-        RandomForestClassifier(max_depth=5, n_estimators=100, random_state=0),
+        #RandomForestClassifier(max_depth=5, n_estimators=100, random_state=0),  0.736842  0.790698  0.888889  0.878049  0.871795  0.594595  0.473684   0.708333  0.750000       0.743654
+        RandomForestClassifier(max_depth=20, n_estimators=100, random_state=0),
         GaussianNB()]
     return names, classifiers
 

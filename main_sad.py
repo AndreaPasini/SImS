@@ -5,7 +5,8 @@
 """
 from datetime import datetime
 import pyximport
-from semantic_analysis.position_classifier import validate_classifiers, build_final_model
+from semantic_analysis.position_classifier import validate_classifiers, build_final_model, \
+    validate_classifiers_grid_search
 
 pyximport.install(language_level=3)
 
@@ -24,8 +25,8 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = True
-use_build_final_model = False
+use_validate_classifiers = False
+use_build_final_model = True
 ####################
 
 if __name__ == "__main__":
@@ -37,6 +38,7 @@ if __name__ == "__main__":
                   Random_Forest,
                   Naive_Bayes]
     if use_validate_classifiers:
+        #validate_classifiers_grid_search()
         validate_classifiers(output_path)
     elif use_build_final_model:
         build_final_model(fileModel_path, classifier)

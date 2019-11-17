@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 import pyximport
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
-from sklearn.model_selection import LeaveOneOut, cross_val_predict
+from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -31,6 +31,21 @@ def checkClassifier(classifier):
     else:
         easygui.msgbox("You must choose only a classifier!", title="Classifier")
 
+def validate_classifiers_grid_search():
+    inizializePath(result_path)
+    data = pd.read_csv(pathFeaturesBalanced, sep=';')
+    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
+
+    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
+    y = np.array(data_img["Position"])
+
+    classifiers = getClassifiersGridSearch()
+    print("Macro F1 scores for different classifiers:")
+    for name, clf, params in classifiers:
+        gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
+        gridSearch.fit(X, y)
+        print(f"- {name}: {gridSearch.best_score_:.3f}")
+        print(gridSearch.best_params_)
 
 def validate_classifiers(output_path):
     inizializePath(result_path)
@@ -39,8 +54,8 @@ def validate_classifiers(output_path):
 
     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
     y = np.array(data_img["Position"])
-    dfAccuracy = pd.DataFrame()
 
+    dfAccuracy = pd.DataFrame()
     cv = LeaveOneOut()
     names, classifiers = getClassifiers()
     try:
@@ -60,6 +75,18 @@ def validate_classifiers(output_path):
     except ValueError as e:
         print(e)
 
+def getClassifiersGridSearch():
+    param_knn = {'n_neighbors' : [5, 10, 15]}
+    param_svc = {'gamma':['auto']}
+    param_dtree = {'max_depth' : [5, 10, 15, 20, 25, 30, 35] }
+    param_rforest = {'max_depth' : [5, 10, 15, 20, 25, 30, 35], 'n_estimators':[10,15,20,25,30,35,40,45,50]}#,60,80,100] }
+
+    classifiers = [("KNN", KNeighborsClassifier(), param_knn),
+                   ("RBF-SVC", SVC(), param_svc),
+                   ("Decision tree", DecisionTreeClassifier(), param_dtree),
+                   ("Random forest", RandomForestClassifier(), param_rforest)]
+
+    return classifiers
 
 def getClassifiers():
     names = ["Nearest Neighbors",
@@ -69,12 +96,11 @@ def getClassifiers():
              "Random Forest",
              "Naive Bayes"]
     classifiers = [
-        KNeighborsClassifier(3),
+        KNeighborsClassifier(5),
         SVC(kernel="linear", C=0.025),
-        SVC(gamma=2, C=1),
-        DecisionTreeClassifier(max_depth=5),
-        #RandomForestClassifier(max_depth=5, n_estimators=100, random_state=0),  0.736842  0.790698  0.888889  0.878049  0.871795  0.594595  0.473684   0.708333  0.750000       0.743654
-        RandomForestClassifier(max_depth=20, n_estimators=100, random_state=0),
+        SVC(gamma='auto'),
+        DecisionTreeClassifier(max_depth=10),
+        RandomForestClassifier(max_depth=20, n_estimators=35, random_state=0),
         GaussianNB()]
     return names, classifiers
 

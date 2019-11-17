@@ -52,7 +52,7 @@ num_new_images = 600    # number of new images to add to the dataset
 filterSideImages = True # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
 #action = 'ADD_NEW_IMAGES'
 # 2. Use this Graphic Interface to manually set ground truth labels to unlabeled samples
-action = 'LABELING_GUI'
+#action = 'LABELING_GUI'
 # 3. Use this method to update ground truth labels of dataset samples, according to their position into folders.
 # Before using this method you have to move the sample images to the folder with the correct label (e.g. move samples
 # with "on" label to the "on" folder)
@@ -61,8 +61,8 @@ action = 'LABELING_GUI'
 # Given samples and labels in the ground truth file, re-create the features matrix file by computing again features
 #action = 'RECOMPUTE_FEATURES'
 # 5. Use this method when the labeling process is complete. This will create a balanced dataset with the specified number of images for each class
-num_img_by_class = 50  # number of images for each class
-#action = 'CREATE_BALANCED_DATASET'
+num_img_by_class = 60  # number of images for each class
+action = 'CREATE_BALANCED_DATASET'
 
 ###############################
 

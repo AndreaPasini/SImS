@@ -101,58 +101,54 @@ def compute_string_positions(strings):
                     ij_positions["other"] += 1
     return positions
 
-def extract_bboxes(mask):
-    boxes = np.zeros([mask.shape[-1], 4], dtype=np.int32)
-    for i in range(mask.shape[-1]):
-        m = mask[:, :, i]
-        # Bounding box.
-        horizontal_indices = np.where(np.any(m, axis=0))[0]
-        vertical_indices = np.where(np.any(m, axis=1))[0]
-        if horizontal_indices.shape[0]:
-            x1, x2 = horizontal_indices[[0, -1]]
-            y1, y2 = vertical_indices[[0, -1]]
-            # x2 and y2 should not be part of the box. Increment by 1.
-            x2 += 1
-            y2 += 1
-        else:
-            # No mask for this instance. Might happen due to
-            # resizing or cropping. Set bbox to zeros
-            x1, x2, y1, y2 = 0, 0, 0, 0
-        boxes[i] = np.array([y1, x1, y2, x2])
-    return boxes.astype(np.int32)
+def extract_bbox_from_mask(mask):
+    """
+    Extract bounding box, given a boolean mask with object pixels
+    :return: [y1, x1, y2, x2]
+    """
+    horizontal_indices = np.where(np.any(mask, axis=0))[0]
+    vertical_indices = np.where(np.any(mask, axis=1))[0]
+    if horizontal_indices.shape[0]:
+        x1, x2 = horizontal_indices[[0, -1]]
+        y1, y2 = vertical_indices[[0, -1]]
+        # x2 and y2 should not be part of the box. Increment by 1.
+        x2 += 1
+        y2 += 1
+    else:
+        # No mask for this instance. Might happen due to
+        # resizing or cropping. Set bbox to zeros
+        x1, x2, y1, y2 = 0, 0, 0, 0
+    return np.array([y1, x1, y2, x2])
 
-def getSideFeatures(img_ann, subject, reference):
-    bboxSubject = getBbox(img_ann, subject)
-    bboxReference = getBbox(img_ann, reference)
-
-    img_height = img_ann.shape[0]
-    img_width = img_ann.shape[1]
-
-    boxSub_top = bboxSubject[0, 0] / img_height
-    boxSub_bottom = bboxSubject[0, 2] / img_height
-    boxRef_top = bboxReference[0, 0] / img_height
-    boxRef_bottom = bboxReference[0, 2] / img_height
-
-    boxSub_left = bboxSubject[0][1] / img_width
-    boxSub_right = bboxSubject[0][3] / img_width
-    boxRef_left = bboxReference[0][1] / img_width
-    boxRef_right = bboxReference[0][3] / img_width
-
-    return [boxRef_bottom - boxSub_top, boxRef_top - boxSub_bottom, boxRef_right - boxSub_left, boxRef_left - boxSub_right]
-
-def getBbox(img_ann, object):
+def extract_bbox(img_ann, object):
+    """
+    Extract bounding box, given image annotation and object id
+    :return: [y1, x1, y2, x2]
+    """
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)
     mask = mask.astype(np.int)
-    _idx = np.sum(mask, axis=(0, 1)) > 0
-    mask = mask[:, :, _idx]
-    return extract_bboxes(mask)
+    return extract_bbox_from_mask(mask)
 
-def getWidth(img_ann, object_id):
-    bbox = getBbox(img_ann, object_id)
-    box_left = bbox[0][1]
-    box_right = bbox[0][3]
+def getWidth(bbox):
+    """ Return the width of a bounding box """
+    box_left = bbox[1]
+    box_right = bbox[3]
     return box_right - box_left
 
+def getSideFeatures(bboxSubject, bboxReference):
+    """ Given bounding boxes of subject and reference, extract features for side relative position """
+    boxSub_top, boxSub_left, boxSub_bottom, boxSub_right = bboxSubject
+    boxRef_top, boxRef_left, boxRef_bottom, boxRef_right = bboxReference
+
+    deltaY1 = boxRef_bottom - boxSub_top
+    deltaY2 = boxRef_top - boxSub_bottom
+    deltaX1 = boxRef_right - boxSub_left
+    deltaX2 = boxRef_left - boxSub_right
+
+    normY = max(abs(deltaY1), abs(deltaY2))
+    normX = max(abs(deltaX1), abs(deltaX2))
+
+    return [deltaY1/normY, deltaY2/normY, deltaX1/normX, deltaX2/normX]
 
 def get_features(img_ann, image_id, subject, reference, positions):
     """
@@ -165,7 +161,9 @@ def get_features(img_ann, image_id, subject, reference, positions):
     :return: the feature vector
     """
     pos = positions[(subject, reference)]
-    subjectWidth = getWidth(img_ann, subject)
-    referenceWidth = getWidth(img_ann, reference)
-    featuresRow = [image_id, subject, reference] + [v / min(subjectWidth, referenceWidth) for k,v in pos.items()] + getSideFeatures(img_ann, subject, reference)
+    subject_bbox = extract_bbox(img_ann, subject)
+    reference_bbox = extract_bbox(img_ann, reference)
+    subjectWidth = getWidth(subject_bbox)
+    referenceWidth = getWidth(reference_bbox)
+    featuresRow = [image_id, subject, reference] + [v / min(subjectWidth, referenceWidth) for k,v in pos.items()] + getSideFeatures(subject_bbox, reference_bbox)
     return featuresRow

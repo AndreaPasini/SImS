@@ -14,8 +14,9 @@ from tqdm import tqdm
 import random
 from image_analysis.ImageProcessing import getImageName, getImage
 from panopticapi.utils import load_png_annotation
-from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
+from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features, extract_bbox_from_mask
 from sklearn.utils import shuffle
+from collections import defaultdict
 
 ### CONFIGURATION ###
 path = '../COCO/positionDataset/training'
@@ -47,11 +48,11 @@ num_processes = 10  # number of processes where scheduling tasks
 # The label associated to a sample corresponds to the relative position of the object pair.
 
 # 1. Add new unlabeled samples to the dataset. These new samples must be labeled with 'LABELING_GUI' functionality.
-num_new_images = 200    # number of new images to add to the dataset
-filterSideImages = False # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
+num_new_images = 600    # number of new images to add to the dataset
+filterSideImages = True # true if you want to obtain (more likely) side images to be labeled (useful because typically side images are rare in the dataset)
 #action = 'ADD_NEW_IMAGES'
 # 2. Use this Graphic Interface to manually set ground truth labels to unlabeled samples
-#action = 'LABELING_GUI'
+action = 'LABELING_GUI'
 # 3. Use this method to update ground truth labels of dataset samples, according to their position into folders.
 # Before using this method you have to move the sample images to the folder with the correct label (e.g. move samples
 # with "on" label to the "on" folder)
@@ -149,7 +150,6 @@ def recompute_features():
         positions = compute_string_positions(strings)
         subject = row['Subject']
         reference = row['Reference']
-
         features_list.append(get_features(img_ann, image_id, subject, reference, positions))
 
     features_df = set_features_matrix_header(features_list)
@@ -361,16 +361,29 @@ def inizializePath(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+def print_cardinality():
+    dirList = [item for item in os.listdir(groundPathImage) if os.path.isdir(os.path.join(groundPathImage, item))]
+    counts = defaultdict(int)
+    for elem in dirList:
+        classPath = groundPathImage + "/" + elem
+        for file in os.listdir(classPath):
+            counts[elem] += 1
+    print("Dataset cardinality:")
+    for k, v in counts.items():
+        print(f"{k}:{v}")
+    print("\n")
 
 if __name__ == "__main__":
     start_time = datetime.now()
     print(start_time.strftime("Start date: %Y-%m-%d %H:%M:%S"))
+
 
     if action == 'ADD_NEW_IMAGES':
         add_new_images(path_json_file, path_annot_folder)
     elif action == 'LABELS_FROM_FOLDERS':
         update_labels_from_folder_division()
     elif action == 'LABELING_GUI':
+        print_cardinality()
         labeling_gui()
         moveImagesToLabelFolders("Position")
     elif action == 'RECOMPUTE_FEATURES':

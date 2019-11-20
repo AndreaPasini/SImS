@@ -5,6 +5,8 @@ def image2strings(img_ann):
     """
     Transform image annotation to vertical string representation
     example: aaaaabbbcc -> [(a,5),(b,3),(c,2)]
+
+    ----
     :param img_ann: image png annotation (numpy matrix)
     :return: list of tuples. Each tuple contains the list of ids and counts
     """
@@ -26,6 +28,8 @@ def image2strings(img_ann):
 def compute_string_positions(strings):
     """
     Compute object positions given string representation.
+
+    ----
     :param strings: string representation
     :return: dictionary with object positions
 
@@ -104,6 +108,8 @@ def compute_string_positions(strings):
 def extract_bbox_from_mask(mask):
     """
     Extract bounding box, given a boolean mask with object pixels
+
+    ----
     :return: [y1, x1, y2, x2]
     """
     horizontal_indices = np.where(np.any(mask, axis=0))[0]
@@ -123,6 +129,8 @@ def extract_bbox_from_mask(mask):
 def extract_bbox(img_ann, object):
     """
     Extract bounding box, given image annotation and object id
+
+    ----
     :return: [y1, x1, y2, x2]
     """
     mask = np.ma.mask_rowcols(img_ann == object, img_ann)
@@ -153,6 +161,8 @@ def getSideFeatures(bboxSubject, bboxReference):
 def get_features(img_ann, image_id, subject, reference, positions):
     """
     Get features vector from a pair of object
+
+    ----
     :param img_ann: numpy array with png annotation (from load_png_annotation() )
     :param image_id: identifier of the image (filename without .png)
     :param subject: subject id

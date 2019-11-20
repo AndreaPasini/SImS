@@ -129,7 +129,6 @@ def analyze_image(image_name, image_id, annot_folder):
     featuresRow = get_features(img_ann, image_id, subject, reference, positions)
     return featuresRow
 
-
 def recompute_features():
     """
     Update features matrix for existing samples.

@@ -23,7 +23,7 @@ def image2strings(img_ann):
         strings.append((ids, counts))
     return strings
 
-def compute_string_positions(strings):
+def compute_string_positions(strings, object_ordering):
     """
     Compute object positions given string representation.
     :param strings: string representation
@@ -47,9 +47,9 @@ def compute_string_positions(strings):
     positions = {}
 
     # For each string (image column)
-    for string_ids, counts in strings:
+    for string_ids, counts in strings or object_ordering:
         # Get unique object ids in the string
-        objects  = np.unique(np.array(string_ids))
+        objects = np.unique(np.array(string_ids)) if strings else string_ids
         # For all object pairs
         for i in range(0, len(objects)-1):
 

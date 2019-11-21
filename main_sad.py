@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime
 from multiprocessing.pool import Pool
 from os import listdir
+import networkx as nx
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,7 @@ from panopticapi.utils import load_png_annotation
 from semantic_analysis.position_classifier import validate_classifiers, build_final_model, \
     validate_classifiers_grid_search
 from semantic_analysis.algorithms import image2strings, get_features, compute_string_positions
+
 pyximport.install(language_level=3)
 
 ### CONFIGURATION ###
@@ -42,37 +44,41 @@ Naive_Bayes = False
 ###  CHOOSE FLOW ###
 use_validate_classifiers = False
 use_build_final_model = False
+
+
 ####################
 
 
-def analyze_image(image_name, segments_info, cat_info, annot_folder, model, hist):
-    # Load png annotation
+def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
     img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-    strings = image2strings(img_ann)
     catInf = pd.DataFrame(cat_info).T
-    cat = pd.DataFrame(segments_info)
-    merge = pd.concat([cat.set_index('category_id'), catInf.set_index('id')], axis=1, join='inner').reset_index()
+    segInfoDf = pd.DataFrame(segments_info)
+    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1, join='inner').reset_index()
     object_ordering = []
-    for string_ids, count in strings:
-        id = np.unique(np.array(string_ids))
-        result = merge[['id', 'name']].loc[merge['id'].isin(id)]
-        e = dict(zip(result['id'].values, result['name'].values))
-        a = sorted(e.items(), key=operator.itemgetter(1))
-        ids = [i[0] for i in a]
-        object_ordering.append((ids, []))
+    hist = {}
 
+    result = merge[['id', 'name']].loc[merge['id'].isin(segInfoDf['id'].values)]
+    pair = dict(zip(result['id'].values, result['name'].values))
+    pairSorted = sorted(pair.items(), key=operator.itemgetter(1))
+    object_ordering.append(([i[0] for i in pairSorted], []))
     positions = compute_string_positions(None, object_ordering)
 
     X_test = positions.items()
-    for pair in list(X_test):
-        featuresRow = get_features(img_ann, "", pair[0][0], pair[0][1], positions)
-        subject = merge[['name']].loc[merge['id'] == pair[0][0], 'name'].values[0]
-        reference = merge[['name']].loc[merge['id'] == pair[0][1], 'name'].values[0]
+    for pairObj in list(X_test):
+        featuresRow = get_features(img_ann, "", pairObj[0][0], pairObj[0][1], positions)
+        subject = merge[['name', 'id']].loc[merge['id'] == pairObj[0][0], ('name', 'id')].values[0]
+        reference = merge[['name', 'id']].loc[merge['id'] == pairObj[0][1], ('name', 'id')].values[0]
         prediction = model.predict([np.asarray(featuresRow[3:])])
-        hist[subject, reference, prediction[0]] += 1
-        #hist[subject, reference][prediction[0]] += 1
-    return hist
+        hist[tuple(subject), tuple(reference)] = prediction[0]
 
+    g = nx.Graph()
+    for p in pairSorted:
+        g.add_node(p[0], object=p[1])
+
+    for key, value in hist.items():
+        g.add_edge(key[0][1], key[1][1], position=value)
+
+    return g
 
 
 def run_tasks(json_file, annot_folder, model):
@@ -103,15 +109,26 @@ def run_tasks(json_file, annot_folder, model):
     print("Scheduling tasks...")
     pool = Pool(10)
     result = []
-    hist = defaultdict()
+
     for img in files:
-        hist = pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model, hist), callback=update).get()
+        result.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model),
+                                       callback=update))
     pool.close()
     pool.join()
 
+    dataset = []
+    for img in result:
+        if img.get() is not None:
+            dataset.append(img.get())
+
+    g1_json = nx.node_link_data(dataset[0])
+    g2_json = nx.node_link_data(dataset[1])
+    graph_list = [g1_json, g2_json]
+    #graphs_string = json.dumps(graph_list)
+
     pbar.close()
-    print(hist)
     print("Done")
+
 
 if __name__ == "__main__":
     start_time = datetime.now()
@@ -122,7 +139,7 @@ if __name__ == "__main__":
                   Random_Forest,
                   Naive_Bayes]
     if use_validate_classifiers:
-        #validate_classifiers_grid_search()
+        # validate_classifiers_grid_search()
         validate_classifiers(output_path)
     elif use_build_final_model:
         build_final_model(fileModel_path, classifier)

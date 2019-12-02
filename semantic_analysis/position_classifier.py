@@ -1,13 +1,16 @@
 import matplotlib
 import numpy as np
 import pandas as pd
-import pickle
+import json
 import os
-import seaborn as sns
+import pickle
+from multiprocessing.pool import Pool
+from os import listdir
+import networkx as nx
 import matplotlib.pyplot as plt
 import easygui
-from sklearn.preprocessing import StandardScaler
 import pyximport
+from networkx.readwrite import json_graph
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
@@ -15,12 +18,19 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
-
+from tqdm import tqdm
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
+from panopticapi.utils import load_png_annotation
 
 pyximport.install(language_level=3)
+from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
 
 result_path = '../COCO/positionDataset/results'
+path_json_file = '../COCO/annotations/panoptic_val2017.json'
+path_annot_folder = '../COCO/annotations/panoptic_val2017'
+json_path_links = '../COCO/positionDataset/results/links.json'
+json_path_sup = '../COCO/kb/pairwiseKB.json'
+
 
 def checkClassifier(classifier):
     if not any(classifier):
@@ -30,6 +40,7 @@ def checkClassifier(classifier):
         return index
     else:
         easygui.msgbox("You must choose only a classifier!", title="Classifier")
+
 
 def validate_classifiers_grid_search():
     inizializePath(result_path)
@@ -46,6 +57,7 @@ def validate_classifiers_grid_search():
         gridSearch.fit(X, y)
         print(f"- {name}: {gridSearch.best_score_:.3f}")
         print(gridSearch.best_params_)
+
 
 def validate_classifiers(output_path):
     inizializePath(result_path)
@@ -75,11 +87,13 @@ def validate_classifiers(output_path):
     except ValueError as e:
         print(e)
 
+
 def getClassifiersGridSearch():
-    param_knn = {'n_neighbors' : [5, 10, 15]}
-    param_svc = {'gamma':['auto']}
-    param_dtree = {'max_depth' : [5, 10, 15, 20, 25, 30, 35] }
-    param_rforest = {'max_depth' : [5, 10, 15, 20, 25, 30, 35], 'n_estimators':[10,15,20,25,30,35,40,45,50]}#,60,80,100] }
+    param_knn = {'n_neighbors': [5, 10, 15]}
+    param_svc = {'gamma': ['auto']}
+    param_dtree = {'max_depth': [5, 10, 15, 20, 25, 30, 35]}
+    param_rforest = {'max_depth': [5, 10, 15, 20, 25, 30, 35],
+                     'n_estimators': [10, 15, 20, 25, 30, 35, 40, 45, 50]}  # ,60,80,100] }
 
     classifiers = [("KNN", KNeighborsClassifier(), param_knn),
                    ("RBF-SVC", SVC(), param_svc),
@@ -87,6 +101,7 @@ def getClassifiersGridSearch():
                    ("Random forest", RandomForestClassifier(), param_rforest)]
 
     return classifiers
+
 
 def getClassifiers():
     names = ["Nearest Neighbors",
@@ -143,7 +158,7 @@ def getConfusionMatrix(y, y_pred, nameClf, row):
 
     fig.tight_layout()
     accuracy = row.mean(axis=1).get(key=nameClf)
-    plt.title("Confusion Matrix "+nameClf + '\nmacro-average f1: {0:.3f}'.format(accuracy))
+    plt.title("Confusion Matrix " + nameClf + '\nmacro-average f1: {0:.3f}'.format(accuracy))
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     print(conf_mat_df)
@@ -208,8 +223,8 @@ def heatmap(data, row_labels, col_labels, ax=None,
     for edge, spine in ax.spines.items():
         spine.set_visible(False)
 
-    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
-    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
+    ax.set_xticks(np.arange(data.shape[1] + 1) - .5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0] + 1) - .5, minor=True)
     ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
     ax.tick_params(which="minor", bottom=False, left=False)
 
@@ -251,7 +266,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     if threshold is not None:
         threshold = im.norm(threshold)
     else:
-        threshold = im.norm(data.max())/2.
+        threshold = im.norm(data.max()) / 2.
 
     # Set default alignment to center, but allow it to be
     # overwritten by textkw.
@@ -273,6 +288,115 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
             texts.append(text)
 
     return texts
+
+
+def analyze_statics(fileModel_path):
+    loaded_model = pickle.load(open(fileModel_path, 'rb'))
+    run_tasks(path_json_file, path_annot_folder, loaded_model)
+
+
+def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
+    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+    catInf = pd.DataFrame(cat_info).T
+    segInfoDf = pd.DataFrame(segments_info)
+    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                      join='inner').reset_index()
+
+    result = merge[['name', 'id']].loc[merge['id'].isin(segInfoDf['id'].values)]
+    result.sort_values(by=['name'], inplace=True)
+    object_ordering = [(result['id'].tolist(), [])]
+    positions = compute_string_positions(None, object_ordering)
+    g = nx.Graph()
+    hist = {}
+    for index, val in enumerate(result.itertuples(), 1):
+        g.add_node(val.id, label=val.name)
+    for pairObj in list(positions.items()):
+        featuresRow = get_features(img_ann, "", pairObj[0][0], pairObj[0][1], positions)
+        subject = result.loc[result['id'] == pairObj[0][0], ('name', 'id')].values[0]
+        reference = result.loc[result['id'] == pairObj[0][1], ('name', 'id')].values[0]
+        prediction = model.predict([np.asarray(featuresRow[3:])])
+        g.add_edge(subject[1], reference[1], position=prediction[0])
+        hist[subject[0], reference[0]] = prediction[0]
+
+    return g, hist
+
+
+def run_tasks(json_file, annot_folder, model):
+    """
+    Run tasks: analyze training annotations
+    :param json_file: annotation file with classes for each segment
+    :param annot_folder: folder with png annotations
+    """
+    # Load annotations
+    with open(json_file, 'r') as f:
+        json_data = json.load(f)
+        annot_dict = {}
+        cat_dict = {}
+        for img_ann in json_data['annotations']:
+            annot_dict[img_ann['file_name']] = img_ann['segments_info']
+        for img_ann in json_data['categories']:
+            cat_dict[img_ann['id']] = img_ann
+    # Get files to be analyzed
+    files = sorted(listdir(annot_folder))
+
+    # Init progress bar
+    pbar = tqdm(total=len(files))
+
+    def update(x):
+        pbar.update()
+
+    print("Number of images: %d" % len(files))
+    print("Scheduling tasks...")
+    pool = Pool(10)
+    results = []
+
+    for img in files:
+        results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model),
+                                        callback=update))
+    pool.close()
+    pool.join()
+
+    resultGraph = []
+    resultDict = []
+    sup = {}
+    positionDict = {}
+    for img in results:
+        if img.get() is not None:
+            result = img.get()
+            resultGraph.append(
+                json_graph.node_link_data(result[0],
+                                          dict(source='s', target='t', name='id', key='key', link='links')))
+            resultDict.append(result[1])
+
+    saveToJson(json_path_links, resultGraph)
+
+    for objects, position in [(k, v) for x in resultDict for (k, v) in x.items()]:
+        sub, ref = objects
+        if objects not in sup.keys():
+            sup[sub, ref] = {position: 0}
+            sup[sub, ref][position] = 1
+        else:
+            sup[sub, ref].update({position: 0})
+            sup[sub, ref][position] += 1
+
+    for keys, values in sup.items():
+        for innerKey, innerValues in values.items():
+            values.update({innerKey: innerValues / len(values)})
+        sup[keys[0], keys[1]].update({'sup': len(values)})
+
+    for k in list(sup):
+        positionDict[str(k)] = sup.pop(k)
+
+    saveToJson(json_path_sup, positionDict)
+
+    pbar.close()
+    print("Done")
+
+
+def saveToJson(path, dict):
+    with open(path, "w") as f:
+        json.dump(dict, f)
+
 
 def removeFile(filePath):
     if os.path.isfile(filePath):

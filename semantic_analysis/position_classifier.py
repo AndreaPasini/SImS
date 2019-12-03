@@ -300,24 +300,24 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
     catInf = pd.DataFrame(cat_info).T
     segInfoDf = pd.DataFrame(segments_info)
     merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                      join='inner').reset_index()
+                      join='inner').set_index('id')
 
-    result = merge[['name', 'id']].loc[merge['id'].isin(segInfoDf['id'].values)]
-    result.sort_values(by=['name'], inplace=True)
-    object_ordering = [(result['id'].tolist(), [])]
-    positions = compute_string_positions(None, object_ordering)
+    result = merge['name'].sort_values()
+    object_ordering = result.index.tolist()
+    positions = compute_string_positions(None, [(object_ordering,[])])## TODO: usare sia strings, sia object_ordering)
     g = nx.Graph()
     hist = {}
-    for index, val in enumerate(result.itertuples(), 1):
-        g.add_node(val.id, label=val.name)
-    for pairObj in list(positions.items()):
-        featuresRow = get_features(img_ann, "", pairObj[0][0], pairObj[0][1], positions)
-        subject = result.loc[result['id'] == pairObj[0][0], ('name', 'id')].values[0]
-        reference = result.loc[result['id'] == pairObj[0][1], ('name', 'id')].values[0]
+    for id, name in result.iteritems():
+        g.add_node(id, label=name)
+    for (s, r), pos in list(positions.items()):
+        featuresRow = get_features(img_ann, "", s, r, positions)
+        subject = result[s]
+        reference = result.loc[r]
         prediction = model.predict([np.asarray(featuresRow[3:])])
-        g.add_edge(subject[1], reference[1], position=prediction[0])
-        hist[subject[0], reference[0]] = prediction[0]
+        g.add_edge(s, r, position=prediction[0])
 
+        hist[subject, reference] = prediction[0]
+        ##### TODO: se ci sono piu' coppie con la stessa classe allora queste vengono conteggiate una sola volta...
     return g, hist
 
 

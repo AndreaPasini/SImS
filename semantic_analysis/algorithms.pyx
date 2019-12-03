@@ -25,7 +25,7 @@ def image2strings(img_ann):
         strings.append((ids, counts))
     return strings
 
-def compute_string_positions(strings, object_ordering):
+def compute_string_positions(strings, object_ordering=None):
     """
     Compute object positions given string representation.
 

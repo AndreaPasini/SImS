@@ -51,9 +51,15 @@ def compute_string_positions(strings, object_ordering=None):
     positions = {}
 
     # For each string (image column)
-    for string_ids, counts in strings or object_ordering:
+    for string_ids, counts in strings:
         # Get unique object ids in the string
-        objects = np.unique(np.array(string_ids)) if strings else string_ids
+        if object_ordering:
+            string_ids = list(filter(lambda a: a != 0, string_ids))
+            objOrder = [x for _, x in sorted(zip(object_ordering[0][0],string_ids))]
+            indexes = np.unique(objOrder, return_index=True)[1]
+            objects = np.array([objOrder[index] for index in sorted(indexes)])
+        else:
+            objects = np.unique(np.array(string_ids))
         # For all object pairs
         for i in range(0, len(objects)-1):
 

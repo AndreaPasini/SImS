@@ -296,15 +296,16 @@ def analyze_statics(fileModel_path):
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
-    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
     catInf = pd.DataFrame(cat_info).T
     segInfoDf = pd.DataFrame(segments_info)
     merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
                       join='inner').set_index('id')
 
     result = merge['name'].sort_values()
+    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+    strings = image2strings(img_ann)
     object_ordering = result.index.tolist()
-    positions = compute_string_positions(None, [(object_ordering,[])])## TODO: usare sia strings, sia object_ordering)
+    positions = compute_string_positions(strings, [(object_ordering,[])])
     g = nx.Graph()
     hist = {}
     for id, name in result.iteritems():
@@ -315,11 +316,13 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
         reference = result.loc[r]
         prediction = model.predict([np.asarray(featuresRow[3:])])
         g.add_edge(s, r, position=prediction[0])
-
-        hist[subject, reference] = prediction[0]
-        ##### TODO: se ci sono piu' coppie con la stessa classe allora queste vengono conteggiate una sola volta...
+        if (subject, reference) not in hist.keys():
+            hist[subject, reference] = {prediction[0]: 0}
+            hist[subject, reference][prediction[0]] = 1
+        else:
+            hist[subject, reference].update({prediction[0]: 0})
+            hist[subject, reference][prediction[0]] += 1
     return g, hist
-
 
 def run_tasks(json_file, annot_folder, model):
     """
@@ -368,16 +371,18 @@ def run_tasks(json_file, annot_folder, model):
                                           dict(source='s', target='t', name='id', key='key', link='links')))
             resultDict.append(result[1])
 
-    saveToJson(json_path_links, resultGraph)
+    #saveToJson(json_path_links, resultGraph)
 
     for objects, position in [(k, v) for x in resultDict for (k, v) in x.items()]:
         sub, ref = objects
-        if objects not in sup.keys():
-            sup[sub, ref] = {position: 0}
-            sup[sub, ref][position] = 1
-        else:
-            sup[sub, ref].update({position: 0})
-            sup[sub, ref][position] += 1
+        for key in position:
+            val = position[key]
+            if objects not in sup.keys():
+                sup[sub, ref] = {key: 0}
+                sup[sub, ref][key] = val
+            else:
+                sup[sub, ref].update({key: 0})
+                sup[sub, ref][key] += val
 
     for keys, values in sup.items():
         for innerKey, innerValues in values.items():
@@ -388,7 +393,6 @@ def run_tasks(json_file, annot_folder, model):
         positionDict[str(k)] = sup.pop(k)
 
     saveToJson(json_path_sup, positionDict)
-
     pbar.close()
     print("Done")
 

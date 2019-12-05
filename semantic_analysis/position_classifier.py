@@ -29,8 +29,8 @@ result_path = '../COCO/positionDataset/results'
 path_json_file = '../COCO/annotations/panoptic_val2017.json'
 path_annot_folder = '../COCO/annotations/panoptic_val2017'
 json_path_links = '../COCO/positionDataset/results/links.json'
-json_path_sup = '../COCO/kb/pairwiseKB.json'
-
+json_path_kb = '../COCO/kb'
+json_path_kb_histograms = '../COCO/kb/pairwiseKB.json'
 
 def checkClassifier(classifier):
     if not any(classifier):
@@ -305,7 +305,7 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
     img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
     strings = image2strings(img_ann)
     object_ordering = result.index.tolist()
-    positions = compute_string_positions(strings, [(object_ordering,[])])
+    positions = compute_string_positions(strings, object_ordering)
     g = nx.Graph()
     hist = {}
     for id, name in result.iteritems():
@@ -314,14 +314,13 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
         featuresRow = get_features(img_ann, "", s, r, positions)
         subject = result[s]
         reference = result.loc[r]
-        prediction = model.predict([np.asarray(featuresRow[3:])])
+        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
         g.add_edge(s, r, position=prediction[0])
         if (subject, reference) not in hist.keys():
-            hist[subject, reference] = {prediction[0]: 0}
-            hist[subject, reference][prediction[0]] = 1
+            hist[subject, reference] = {prediction: 1}
         else:
-            hist[subject, reference].update({prediction[0]: 0})
-            hist[subject, reference][prediction[0]] += 1
+            hist[subject, reference].update({prediction: 0})
+            hist[subject, reference][prediction] += 1
     return g, hist
 
 def run_tasks(json_file, annot_folder, model):
@@ -360,39 +359,46 @@ def run_tasks(json_file, annot_folder, model):
     pool.join()
 
     resultGraph = []
-    resultDict = []
-    sup = {}
-    positionDict = {}
+    resultHist = []
     for img in results:
         if img.get() is not None:
-            result = img.get()
+            graph, hist = img.get()
+            # Get graph description for this image
             resultGraph.append(
-                json_graph.node_link_data(result[0],
+                json_graph.node_link_data(graph,
                                           dict(source='s', target='t', name='id', key='key', link='links')))
-            resultDict.append(result[1])
+            # Get position histograms for this image
+            resultHist.append(hist)
 
     #saveToJson(json_path_links, resultGraph)
 
-    for objects, position in [(k, v) for x in resultDict for (k, v) in x.items()]:
-        sub, ref = objects
-        for key in position:
-            val = position[key]
-            if objects not in sup.keys():
-                sup[sub, ref] = {key: 0}
-                sup[sub, ref][key] = val
-            else:
-                sup[sub, ref].update({key: 0})
-                sup[sub, ref][key] += val
+    histograms = {}
+    positionDict = {}
 
-    for keys, values in sup.items():
-        for innerKey, innerValues in values.items():
-            values.update({innerKey: innerValues / len(values)})
-        sup[keys[0], keys[1]].update({'sup': len(values)})
+    # Add up all histogram statistics
+    for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
+        if pair not in histograms:
+            # add histogram as it is if pair is not existing
+            histograms[pair] = hist
+        else:
+            total_hist = histograms[pair]
+            # update histograms if pair already existing
+            for key in hist:
+                if key in total_hist:
+                    total_hist[key] += hist[key]
+                else:
+                    total_hist[key] = hist[key]
 
-    for k in list(sup):
-        positionDict[str(k)] = sup.pop(k)
 
-    saveToJson(json_path_sup, positionDict)
+    for hist in histograms.values():
+        sup = sum(hist.values())    # support: sum of all occurrences in the histogram
+        for pos, count in hist.items():
+            hist[pos] = count / sup
+        hist['sup'] = sup
+
+    if not os.path.isdir(json_path_kb):
+        os.makedirs(json_path_kb)
+    saveToJson(json_path_kb_histograms, histograms)############################TODO: key ('cabinet-merged', 'floor-wood') is not a string
     pbar.close()
     print("Done")
 

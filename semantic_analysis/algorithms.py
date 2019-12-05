@@ -31,7 +31,8 @@ def compute_string_positions(strings, object_ordering=None):
 
     ----
     :param strings: string representation
-    :return: dictionary with object positions
+    :param object_ordering: object ids ordered if you want a specific object order the returned pairs
+    :return: dictionary with object positions for each object pair
 
     Pseudocode: position of two objects i, j given a string
     last_object = None
@@ -54,21 +55,12 @@ def compute_string_positions(strings, object_ordering=None):
     for string_ids, counts in strings:
         # Get unique object ids in the string
         if object_ordering:
-            string_ids = list(filter(lambda a: a != 0, string_ids))
-            objOrder = [x for _, x in sorted(zip(object_ordering[0][0],string_ids))]
-            indexes = np.unique(objOrder, return_index=True)[1]
-            objects = np.array([objOrder[index] for index in sorted(indexes)])
+            objects = [obj for obj in object_ordering if obj in string_ids]
         else:
-            objects = np.unique(np.array(string_ids))
+            objects = sorted(list(set(string_ids)-{0}))
         # For all object pairs
         for i in range(0, len(objects)-1):
-
-            if objects[i]==0:
-                continue
             for j in range(i+1, len(objects)):
-                if objects[i] == 0:
-                    continue
-
                 obj_i = objects[i]
                 obj_j = objects[j]
 

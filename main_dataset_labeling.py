@@ -16,7 +16,11 @@ import random
 from config import position_dataset_dir, COCO_train_json_path, COCO_ann_train_dir, position_labels_csv_path
 from image_analysis.ImageProcessing import getImageName, getImage
 from panopticapi.utils import load_png_annotation
+
+import pyximport
+pyximport.install(language_level=3)
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features, extract_bbox_from_mask
+
 from sklearn.utils import shuffle
 from collections import defaultdict
 

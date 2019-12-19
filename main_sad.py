@@ -7,10 +7,8 @@ from datetime import datetime
 import pyximport
 
 from config import position_classifier_path
-from semantic_analysis.position_classifier import validate_classifiers, build_final_model, \
-    validate_classifiers_grid_search, analyze_statics
-from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
-pyximport.install(language_level=3)
+from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics
+
 
 ### CONFIGURATION ###
 output_path = '../COCO/positionDataset/results/evaluation.txt'

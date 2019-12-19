@@ -1,8 +1,11 @@
+import pyximport
+pyximport.install(language_level=3)
 from config import COCO_panoptic_cat_info_path, position_labels_csv_path, position_dataset_res_dir
 from panopticapi.utils import load_panoptic_categ_list
-from semantic_analysis.gspan_mining import gSpan
+from semantic_analysis.gspan_mining.gspan import gSpan
 from semantic_analysis.position_classifier import train_graphs_json_path
 import json
+import networkx as nx
 import os
 
 # Configuration
@@ -13,7 +16,7 @@ def json_graph_to_gspan(graph, conv_coco_category, conv_pos_category):
     vindex = 0
 
     descr = ""
-    # for all vertices
+    # for all nodes
     for v in graph['nodes']:
         l = conv_coco_category[v['label']]
         vmap[v['id']] = vindex
@@ -48,13 +51,16 @@ def create_graph_data_file():
             f.write(json_graph_to_gspan(g, conv_coco_category, conv_pos_category))
         f.write("t # -1")
 
+
+################################## TODO: random walk multiple sullo stesso grafo, poi fare sequence mining #############################
+
 def main():
     # Convert json graphs to the correct format for gspan mining.
-    create_graph_data_file()
+    #create_graph_data_file()
 
     gs = gSpan(
         database_file_name=train_graphs_data_path,
-        min_support=2,  # 5000,
+        min_support=5,  # 5000,
         verbose=False,
         visualize=False,
     )
@@ -62,11 +68,14 @@ def main():
     gs.run()
     gs.time_stats()
 
-    sn = gs._frequent_subgraphs
+    graphs = gs._frequent_subgraphs
+    for g, sup in graphs:
+        # Convert graph
+        for n in g.nodes:
+            ...
+        #res = nx.node_link_data(sn[0][0])
 
-    #res = nx.node_link_data(sn[0][0])
-
-    stringa = json.dumps(res)
+    #stringa = json.dumps(res)
 
     print("done")
 

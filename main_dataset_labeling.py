@@ -12,6 +12,8 @@ from tkinter.ttk import Combobox
 from PIL import Image, ImageTk
 from tqdm import tqdm
 import random
+
+from config import position_dataset_dir, COCO_train_json_path, COCO_ann_train_dir, position_labels_csv_path
 from image_analysis.ImageProcessing import getImageName, getImage
 from panopticapi.utils import load_png_annotation
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features, extract_bbox_from_mask
@@ -19,23 +21,18 @@ from sklearn.utils import shuffle
 from collections import defaultdict
 
 ### CONFIGURATION ###
-path = '../COCO/positionDataset/training'
-groundPathImage = path + "/" + "groundTruth"
-path_json_file = '../COCO/annotations/panoptic_train2017.json'
-path_annot_folder = '../COCO/annotations/panoptic_train2017'
-
-
-
+position_train_dir = os.path.join(position_dataset_dir, '/training')
+groundPathImage = position_train_dir + "/" + "groundTruth"
 
 # List of labels to be recognized
-position_labels = tuple(s.strip() for s in open('../COCO/positionDataset/training/LabelsList.csv').readlines())
+position_labels = tuple(s.strip() for s in open(position_labels_csv_path).readlines())
 
 # Feature matrix for object position computation
-pathFeatures = path + '/Features.csv'
-pathFeaturesBalanced = path + '/FeaturesBalanced.csv'
+pathFeatures = position_train_dir + '/Features.csv'
+pathFeaturesBalanced = position_train_dir + '/FeaturesBalanced.csv'
 # Ground truth labels for object position computation
-pathGroundTruth = path + '/GroundTruth.csv'
-pathGroundTruthBalanced = path + '/GroundTruthBalanced.csv'
+pathGroundTruth = position_train_dir + '/GroundTruth.csv'
+pathGroundTruthBalanced = position_train_dir + '/GroundTruthBalanced.csv'
 
 num_processes = 10  # number of processes where scheduling tasks
 
@@ -138,13 +135,12 @@ def recompute_features():
     print("Recomputing features of labeled images...")
     df = pd.read_csv(pathGroundTruth, sep=';')
     #df_features = pd.read_csv(pathFeatures, sep=';')
-    path_json_file, path_annot_folder
     features_list = []
     for i,row in df.iterrows():
         image_id = row['image_id']
         # Load png annotation
         image_name = f"{image_id:012d}.png"
-        img_ann = load_png_annotation(os.path.join(path_annot_folder, image_name))
+        img_ann = load_png_annotation(os.path.join(COCO_ann_train_dir, image_name))
         strings = image2strings(img_ann)
         positions = compute_string_positions(strings)
         subject = row['Subject']
@@ -171,7 +167,7 @@ def add_new_images(json_file, annot_folder):
         for img_ann in json_data['annotations']:
             id_dict[img_ann['file_name']] = img_ann['image_id']
     # Get files to be analyzed
-    files = shuffle(sorted(listdir(annot_folder)))#############################################################
+    files = shuffle(sorted(listdir(annot_folder)))
 
     # Init progress bar
     pbar = tqdm(total=num_new_images)
@@ -229,7 +225,7 @@ def labeling_gui():
             dfFeatures = pd.read_csv(pathFeatures, sep=';')
             dfSelected = df[df.iloc[:, 3] == ''].copy()
             for index, row in dfSelected.iterrows():
-                image = getImageName(row[0], path)
+                image = getImageName(row[0], position_train_dir)
                 img = Image.open(image)
                 render = ImageTk.PhotoImage(img)
                 img = tk.Label(image=render)
@@ -296,7 +292,7 @@ def moveImagesToLabelFolders(column):
         file = pathGroundTruth
     df = pd.read_csv(file, usecols=["image_id", column], sep=';')
     for index, row in df.iterrows():
-        imageSource = getImageName(row[0], path)
+        imageSource = getImageName(row[0], position_train_dir)
         if os.path.isfile(imageSource):
             if str(row[1]) == 'nan':
                 continue
@@ -378,7 +374,7 @@ if __name__ == "__main__":
 
 
     if action == 'ADD_NEW_IMAGES':
-        add_new_images(path_json_file, path_annot_folder)
+        add_new_images(COCO_train_json_path, COCO_ann_train_dir)
     elif action == 'LABELS_FROM_FOLDERS':
         update_labels_from_folder_division()
     elif action == 'LABELING_GUI':

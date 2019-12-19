@@ -19,18 +19,13 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from tqdm import tqdm
+
+from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, train_graphs_json_path
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
 pyximport.install(language_level=3)
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
-
-result_path = '../COCO/positionDataset/results'
-path_json_file = '../COCO/annotations/panoptic_val2017.json'
-path_annot_folder = '../COCO/annotations/panoptic_val2017'
-json_path_links = '../COCO/positionDataset/results/links.json'
-json_path_kb = '../COCO/kb'
-json_path_kb_histograms = '../COCO/kb/pairwiseKB.json'
 
 def checkClassifier(classifier):
     if not any(classifier):
@@ -43,7 +38,7 @@ def checkClassifier(classifier):
 
 
 def validate_classifiers_grid_search():
-    inizializePath(result_path)
+    inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
@@ -60,7 +55,7 @@ def validate_classifiers_grid_search():
 
 
 def validate_classifiers(output_path):
-    inizializePath(result_path)
+    inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
@@ -121,7 +116,7 @@ def getClassifiers():
 
 
 def build_final_model(fileModel, classifier):
-    inizializePath(result_path)
+    inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
@@ -162,7 +157,7 @@ def getConfusionMatrix(y, y_pred, nameClf, row):
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     print(conf_mat_df)
-    file = result_path + "/" + nameClf + ".jpeg"
+    file = position_dataset_res_dir + "/" + nameClf + ".jpeg"
     removeFile(file)
     fig.set_size_inches(13, 10, forward=True)
     plt.savefig(file)
@@ -292,7 +287,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
 
 def analyze_statics(fileModel_path):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(path_json_file, path_annot_folder, loaded_model)
+    run_tasks(COCO_val_json_path, COCO_ann_val_dir, loaded_model)
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
@@ -370,7 +365,7 @@ def run_tasks(json_file, annot_folder, model):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    #saveToJson(json_path_links, resultGraph)
+    #saveToJson(train_graphs_json_path, resultGraph)
 
     histograms = {}
     positionDict = {}
@@ -396,9 +391,9 @@ def run_tasks(json_file, annot_folder, model):
             hist[pos] = count / sup
         hist['sup'] = sup
 
-    if not os.path.isdir(json_path_kb):
-        os.makedirs(json_path_kb)
-    saveToJson(json_path_kb_histograms, histograms)############################TODO: key ('cabinet-merged', 'floor-wood') is not a string
+    if not os.path.isdir(kb_dir):
+        os.makedirs(kb_dir)
+    saveToJson(kb_pairwise_json_path, histograms)############################TODO: key ('cabinet-merged', 'floor-wood') is not a string
     pbar.close()
     print("Done")
 

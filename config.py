@@ -6,7 +6,8 @@ COCO_ann_val_dir = os.path.join(COCO_dir, 'annotations/panoptic_val2017/')
 COCO_val_json_path = os.path.join(COCO_dir, 'annotations/panoptic_val2017.json')
 COCO_ann_train_dir = os.path.join(COCO_dir, 'annotations/panoptic_train2017/')
 COCO_train_json_path = os.path.join(COCO_dir, 'annotations/panoptic_train2017.json')
-
+COCO_panoptic_cat_info_path = './classes/panoptic_coco_categories.json'
+COCO_panoptic_cat_list_path = './classes/panoptic.csv'
 
 # Position classifier
 position_dataset_res_dir = os.path.join(COCO_dir, 'positionDataset/results')

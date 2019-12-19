@@ -21,18 +21,18 @@ from sklearn.utils import shuffle
 from collections import defaultdict
 
 ### CONFIGURATION ###
-position_train_dir = os.path.join(position_dataset_dir, '/training')
-groundPathImage = position_train_dir + "/" + "groundTruth"
+position_train_dir = os.path.join(position_dataset_dir, 'training')
+groundPathImage = os.path.join(position_train_dir, 'groundTruth')
 
 # List of labels to be recognized
 position_labels = tuple(s.strip() for s in open(position_labels_csv_path).readlines())
 
 # Feature matrix for object position computation
-pathFeatures = position_train_dir + '/Features.csv'
-pathFeaturesBalanced = position_train_dir + '/FeaturesBalanced.csv'
+pathFeatures = os.path.join(position_train_dir, 'Features.csv')
+pathFeaturesBalanced = os.path.join(position_train_dir, 'FeaturesBalanced.csv')
 # Ground truth labels for object position computation
-pathGroundTruth = position_train_dir + '/GroundTruth.csv'
-pathGroundTruthBalanced = position_train_dir + '/GroundTruthBalanced.csv'
+pathGroundTruth = os.path.join(position_train_dir, 'GroundTruth.csv')
+pathGroundTruthBalanced = os.path.join(position_train_dir, 'GroundTruthBalanced.csv')
 
 num_processes = 10  # number of processes where scheduling tasks
 

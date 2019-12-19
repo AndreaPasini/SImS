@@ -1,7 +1,7 @@
 import requests
 import os
 import json
-from panopticapi.utils import load_panoptic_categories
+from panopticapi.utils import load_panoptic_category_info
 #'http://api.conceptnet.io/a/%5B/r/UsedFor/,/c/en/example/,/c/en/explain/%5D'
 from pyspark import SparkContext, SQLContext
 import pandas as pd
@@ -37,7 +37,7 @@ def filter_data(fields, categories, conceptnet_map):
     return start & end
 
 if __name__ == '__main__':
-    categories = load_panoptic_categories('./classes/panoptic_coco_categories.json')
+    categories = load_panoptic_category_info()
     super_categories = set([cat['supercategory'] for cat in categories.values()])
     categories = set([cat['name'] for cat in categories.values() if cat!='other'])
     with open('./classes/panoptic_conceptnet.csv', 'r') as f:

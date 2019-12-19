@@ -16,6 +16,9 @@
 
 from datetime import datetime
 import matplotlib
+
+from config import COCO_panoptic_cat_list_path
+
 matplotlib.use('Agg')
 import os
 from tqdm import tqdm
@@ -93,7 +96,7 @@ def run_model(img_names, path, use_deeplab=True, use_maskrcnn=True, use_maskrcnn
     if use_deeplab:
         deeplab = Semantic_segmentation('./deeplab/configs/cocostuff164k.yaml',
                                         './deeplab/data/models/deeplabv2_resnet101_msc-cocostuff164k-100000.pth',
-                                        './classes/deeplabToCoco.csv','./classes/panoptic.csv' )
+                                        './classes/deeplabToCoco.csv',COCO_panoptic_cat_list_path)
     if use_maskrcnn:
         maskrcnn = Instance_segmentation('./classes/maskrcnnToCoco.csv')
     if use_maskrcnn_matterport:

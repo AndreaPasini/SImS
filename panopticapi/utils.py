@@ -9,6 +9,9 @@ import numpy as np
 from PIL import Image
 
 # The decorator is used to prints an error trhown inside process
+from config import COCO_panoptic_cat_info_path, COCO_panoptic_cat_list_path
+
+
 def get_traceback(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -108,11 +111,22 @@ def load_png_annotation(img_path):
     pan_pred = np.array(Image.open(img_path), dtype=np.uint32)
     return rgb2id(pan_pred)
 
-def load_panoptic_categories(categories_json_file):
+def load_panoptic_category_info():
     """
-    :param categories_json_file: json file with panoptic categories (e.g. './classes/panoptic_coco_categories.json')
     :return: a list of dictionaries with category information
     """
-    with open(categories_json_file, 'r') as f:
+    with open(COCO_panoptic_cat_info_path, 'r') as f:
         categories_list = json.load(f)
     return {el['id']: el for el in categories_list}
+
+def load_panoptic_categ_list():
+    """
+    Return panoptic segmentation labels
+    :return dictionary. Key=class id, value=label(string)
+    """
+    panoptic_classes = {}
+    with open(COCO_panoptic_cat_list_path) as f:
+        for line in f.readlines():
+            id, label = line.rstrip('\n').split(":")
+            panoptic_classes[int(id)] = label
+    return panoptic_classes

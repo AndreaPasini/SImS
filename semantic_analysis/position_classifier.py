@@ -310,7 +310,7 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
         subject = result[s]
         reference = result.loc[r]
         prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-        g.add_edge(s, r, position=prediction[0])
+        g.add_edge(s, r, pos=prediction)
         if (subject, reference) not in hist.keys():
             hist[subject, reference] = {prediction: 1}
         else:
@@ -361,7 +361,7 @@ def run_tasks(json_file, annot_folder, model):
             # Get graph description for this image
             resultGraph.append(
                 json_graph.node_link_data(graph,
-                                          dict(source='s', target='t', name='id', key='key', link='links')))
+                                          dict(source='s', target='r', name='id', key='key', link='links')))
             # Get position histograms for this image
             resultHist.append(hist)
 

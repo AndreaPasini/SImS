@@ -1348,7 +1348,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     # Positive ROIs are those with >= 0.5 IoU with a GT box.
     fg_ids = np.where(rpn_roi_iou_max > 0.5)[0]
 
-    # Negative ROIs are those with max IoU 0.1-0.5 (hard example mining)
+    # Negative ROIs are those with max IoU 0.1-0.5 (hard example gspan_mining)
     # TODO: To hard example mine or not to hard example mine, that's the question
     # bg_ids = np.where((rpn_roi_iou_max >= 0.1) & (rpn_roi_iou_max < 0.5))[0]
     bg_ids = np.where(rpn_roi_iou_max < 0.5)[0]

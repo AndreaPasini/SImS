@@ -9,6 +9,8 @@
 """
 
 import matplotlib
+
+from config import COCO_panoptic_cat_info_path
 from panopticapi.evaluation import pq_compute_pr
 matplotlib.use('Agg')
 import os
@@ -21,7 +23,7 @@ from os import listdir
 import json
 from multiprocessing import Pool
 from maskrcnn.utils import extract_mask_bool
-from panopticapi.utils import IdGenerator, id2rgb, load_panoptic_categories
+from panopticapi.utils import IdGenerator, id2rgb, load_panoptic_category_info
 
 ### CONFIGURATION ###
 # Folder configuration
@@ -45,7 +47,7 @@ def build_panoptic_area(img_id, output_path, detection_path, segmentation_path):
         os.makedirs(output_path)
 
     #Read categories and create IdGenerator (official panopticapi repository)
-    categories = load_panoptic_categories('./classes/panoptic_coco_categories.json')
+    categories = load_panoptic_category_info()
     id_generator = IdGenerator(categories)
 
     #Parameters:

@@ -12,7 +12,7 @@ import json
 from addict import Dict
 
 from deeplab.libs.models import *
-
+from panopticapi.utils import load_panoptic_categ_list
 
 
 def get_device(cuda):
@@ -77,11 +77,7 @@ class Semantic_segmentation:
                 self.__deeplab_to_coco[int(deeplab_id)] = int(coco_id)
 
         # Read COCO panoptic classes
-        self.__panoptic_classes = {}
-        with open(panoptic_classes_path) as f:
-            for line in f.readlines():
-                id, label = line.rstrip('\n').split(":")
-                self.__panoptic_classes[int(id)] = label
+        self.__panoptic_classes = load_panoptic_categ_list()
 
     def build_class_file(self, coco_stuff_classes_path, coco_thing_classes_path, coco_merged_path, output_conversion_path, output_panoptic_path):
         """

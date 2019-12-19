@@ -11,7 +11,7 @@ COCO_train_json_path = os.path.join(COCO_dir, 'annotations/panoptic_train2017.js
 # Position classifier
 position_dataset_res_dir = os.path.join(COCO_dir, 'positionDataset/results')
 position_classifier_path = os.path.join(position_dataset_res_dir, 'final_model.clf')
-train_graphs_json_path = os.path.join(position_dataset_res_dir, 'links.json')
+train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
 position_labels_csv_path = os.path.join(COCO_dir, 'positionDataset/training/LabelsList.csv')
 
 # Knowledge base

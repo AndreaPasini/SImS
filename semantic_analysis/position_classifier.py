@@ -365,7 +365,7 @@ def run_tasks(json_file, annot_folder, model):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    #saveToJson(train_graphs_json_path, resultGraph)
+    saveToJson(train_graphs_json_path, resultGraph)
 
     histograms = {}
     positionDict = {}

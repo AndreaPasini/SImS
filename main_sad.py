@@ -4,8 +4,6 @@
 
 """
 from datetime import datetime
-import pyximport
-
 from config import position_classifier_path
 from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics
 

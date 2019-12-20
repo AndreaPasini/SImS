@@ -331,7 +331,7 @@ class gSpan(object):
             return
         g = self._DFScode.to_graph(gid=next(self._counter),
                                    is_undirected=self._is_undirected)
-        self._frequent_subgraphs.append((g.to_nx_graph(), self._support))
+        self._frequent_subgraphs.append((g, self._support))
         display_str = g.display()
         # print('\nSupport: {}'.format(self._support))
 
@@ -579,3 +579,9 @@ class gSpan(object):
             self._DFScode.pop()
 
         return self
+
+    def get_result(self):
+        """
+        Return result graphs. List of tuples: (Graph, support)
+        """
+        return self._frequent_subgraphs

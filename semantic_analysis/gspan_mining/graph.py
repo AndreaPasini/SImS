@@ -7,6 +7,7 @@ import collections
 import itertools
 import networkx as nx
 
+
 VACANT_EDGE_ID = -1
 VACANT_VERTEX_ID = -1
 VACANT_EDGE_LABEL = -1
@@ -162,3 +163,60 @@ class Graph(object):
                 if (not self.is_undirected) or vid < to:
                     gnx.add_edge(vid, to, label=e.elb)
         return gnx
+
+    def to_nx_COCO_graph(self, conv_coco_category, conv_pos_category):
+        """ Converto to NetworkX graph. Substitute with final COCO labels """
+        gnx = nx.DiGraph()
+        node_labels = {}
+        for vid, v in self.vertices.items():
+            label = conv_coco_category[int(v.vlb)]
+            node_labels[vid] = label
+            gnx.add_node(vid, label=label)
+
+        for vid, v in self.vertices.items():
+            for to, e in v.edges.items():
+                if (not self.is_undirected) or vid < to:
+                    # Edges must be sorted alphabetically to reconstruct directed graph
+                    if (node_labels[vid]<=node_labels[to]):
+                        gnx.add_edge(vid, to, label=conv_pos_category[int(e.elb)])
+                    else:
+                        gnx.add_edge(to, vid, label=conv_pos_category[int(e.elb)])
+        return gnx
+
+
+def json_to_nx(graph):
+    """
+    Convert json graph (node-link-data) to Networkx graph.
+    """
+    return nx.node_link_graph(graph, attrs = dict(source='s', target='r', name='id', key='key', link='links'))
+
+
+def nx_to_json(graph):
+    """
+    Convert json graph (node-link-data) to Networkx graph.
+    """
+    return nx.node_link_data(graph, dict(source='s', target='r', name='id', key='key', link='links'))
+
+
+def json_graph_to_gspan(graph, conv_coco_category, conv_pos_category):
+    """
+    Converts a json graph to Gspan (directed) format
+    """
+    vmap = {}  # old -> new
+    vindex = 0
+
+    descr = ""
+    # for all nodes
+    for v in graph['nodes']:
+        l = conv_coco_category[v['label']]
+        vmap[v['id']] = vindex
+        descr += f"v {vindex} {l}\n"
+        vindex += 1
+    # for all edges
+    for e in graph['links']:
+        l = conv_pos_category[e['pos']]  # label
+        s = vmap[e['s']]  # subject
+        r = vmap[e['r']]  # reference
+        descr += f"e {s} {r} {l}\n"
+
+    return descr

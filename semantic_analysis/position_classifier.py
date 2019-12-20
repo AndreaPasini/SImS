@@ -9,8 +9,6 @@ from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
 import easygui
-import pyximport
-from networkx.readwrite import json_graph
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
@@ -24,7 +22,9 @@ from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_jso
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
+import pyximport
 pyximport.install(language_level=3)
+from semantic_analysis.gspan_mining.mining import nx_to_json
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
 
 def checkClassifier(classifier):
@@ -359,9 +359,7 @@ def run_tasks(json_file, annot_folder, model):
         if img.get() is not None:
             graph, hist = img.get()
             # Get graph description for this image
-            resultGraph.append(
-                json_graph.node_link_data(graph,
-                                          dict(source='s', target='r', name='id', key='key', link='links')))
+            resultGraph.append(nx_to_json(graph))
             # Get position histograms for this image
             resultHist.append(hist)
 

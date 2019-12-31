@@ -290,9 +290,9 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def analyze_statics(fileModel_path):
+def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(COCO_val_json_path, COCO_ann_val_dir, loaded_model)
+    run_tasks(COCO_json_path, COCO_ann_dir, loaded_model)
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):

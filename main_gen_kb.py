@@ -4,7 +4,8 @@
 
 """
 from datetime import datetime
-from config import position_classifier_path
+from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
+    COCO_ann_train_dir
 from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics, \
     validate_classifiers_grid_search
 
@@ -22,9 +23,14 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = False
+use_validate_classifiers = True
 use_build_final_model = False
-use_analyze_statics = True
+use_analyze_statics = False
+####################
+
+###  CHOOSE SET OF IMAGES ###
+use_validation_image = False
+use_train_image = True
 ####################
 
 
@@ -37,12 +43,16 @@ if __name__ == "__main__":
                   Random_Forest,
                   Naive_Bayes]
     if use_validate_classifiers:
-        #validate_classifiers_grid_search()
+        # validate_classifiers_grid_search()
         validate_classifiers(output_path)
     elif use_build_final_model:
         build_final_model(position_classifier_path, classifier)
     elif use_analyze_statics:
-        analyze_statics(position_classifier_path)
+        if use_validation_image:
+            COCO_json_path, COCO_ann_dir = COCO_val_json_path, COCO_ann_val_dir
+        elif use_train_image:
+            COCO_json_path, COCO_ann_dir = COCO_train_json_path, COCO_ann_train_dir
+        analyze_statics(position_classifier_path, COCO_json_path, COCO_ann_dir)
 
     end_time = datetime.now()
     print("Done.")

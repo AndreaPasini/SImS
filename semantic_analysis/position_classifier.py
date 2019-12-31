@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -18,7 +20,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from tqdm import tqdm
 
-from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, train_graphs_json_path
+from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
+    train_graphs_json_path
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
@@ -26,6 +29,7 @@ import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import nx_to_json
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
+
 
 def checkClassifier(classifier):
     if not any(classifier):
@@ -318,6 +322,7 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
             hist[subject, reference][prediction] += 1
     return g, hist
 
+
 def run_tasks(json_file, annot_folder, model):
     """
     Run tasks: analyze training annotations
@@ -363,10 +368,10 @@ def run_tasks(json_file, annot_folder, model):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    saveToJson(train_graphs_json_path, resultGraph)
+    with open(train_graphs_json_path, "w") as f:
+        json.dump(resultGraph, f)
 
     histograms = {}
-    positionDict = {}
 
     # Add up all histogram statistics
     for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
@@ -382,23 +387,19 @@ def run_tasks(json_file, annot_folder, model):
                 else:
                     total_hist[key] = hist[key]
 
-
     for hist in histograms.values():
-        sup = sum(hist.values())    # support: sum of all occurrences in the histogram
+        sup = sum(hist.values())  # support: sum of all occurrences in the histogram
         for pos, count in hist.items():
             hist[pos] = count / sup
         hist['sup'] = sup
 
     if not os.path.isdir(kb_dir):
         os.makedirs(kb_dir)
-    saveToJson(kb_pairwise_json_path, histograms)############################TODO: key ('cabinet-merged', 'floor-wood') is not a string
+    with open(kb_pairwise_json_path, "w") as f:
+        json.dump({str(k): v for k, v in histograms.items()}, f)
+
     pbar.close()
     print("Done")
-
-
-def saveToJson(path, dict):
-    with open(path, "w") as f:
-        json.dump(dict, f)
 
 
 def removeFile(filePath):

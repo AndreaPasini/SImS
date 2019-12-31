@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -10,7 +8,7 @@ from multiprocessing.pool import Pool
 from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
-import easygui
+import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
@@ -34,12 +32,14 @@ from semantic_analysis.algorithms import image2strings, compute_string_positions
 
 def checkClassifier(classifier):
     if not any(classifier):
-        easygui.msgbox("You must choose a classifier!", title="Classifier")
+        print("You must choose a classifier!")
+        sys.exit(0)
     elif sum(classifier) == 1:
         index = int(" ".join(str(x) for x in np.argwhere(classifier)[0]))
         return index
     else:
-        easygui.msgbox("You must choose only a classifier!", title="Classifier")
+        print("You must choose only a classifier!")
+        sys.exit(0)
 
 
 def validate_classifiers_grid_search():

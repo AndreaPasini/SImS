@@ -5,8 +5,8 @@
 """
 from datetime import datetime
 from config import position_classifier_path
-from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics
-
+from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics, \
+    validate_classifiers_grid_search
 
 ### CONFIGURATION ###
 output_path = '../COCO/positionDataset/results/evaluation.txt'
@@ -37,7 +37,7 @@ if __name__ == "__main__":
                   Random_Forest,
                   Naive_Bayes]
     if use_validate_classifiers:
-        # validate_classifiers_grid_search()
+        #validate_classifiers_grid_search()
         validate_classifiers(output_path)
     elif use_build_final_model:
         build_final_model(position_classifier_path, classifier)

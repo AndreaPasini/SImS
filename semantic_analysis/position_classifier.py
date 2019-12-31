@@ -28,6 +28,7 @@ from panopticapi.utils import load_png_annotation
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import nx_to_json
+from scipy.stats import entropy
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
 
 
@@ -389,9 +390,15 @@ def run_tasks(json_file, annot_folder, model):
 
     for hist in histograms.values():
         sup = sum(hist.values())  # support: sum of all occurrences in the histogram
+        ent = []
         for pos, count in hist.items():
-            hist[pos] = count / sup
+            perc = count / sup
+            hist[pos] = perc
+            ent.append(perc)
         hist['sup'] = sup
+        hist['entropy'] = entropy(ent, base=2)
+
+
 
     if not os.path.isdir(kb_dir):
         os.makedirs(kb_dir)

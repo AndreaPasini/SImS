@@ -23,9 +23,9 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = True
+use_validate_classifiers = False
 use_build_final_model = False
-use_analyze_statics = False
+use_analyze_statics = True
 ####################
 
 ###  CHOOSE SET OF IMAGES ###

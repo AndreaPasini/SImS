@@ -1,3 +1,5 @@
+import traceback
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -296,32 +298,37 @@ def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir):
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
-    catInf = pd.DataFrame(cat_info).T
-    segInfoDf = pd.DataFrame(segments_info)
-    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                      join='inner').set_index('id')
+    try:
+        catInf = pd.DataFrame(cat_info).T
+        segInfoDf = pd.DataFrame(segments_info)
+        merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                          join='inner').set_index('id')
 
-    result = merge['name'].sort_values()
-    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-    strings = image2strings(img_ann)
-    object_ordering = result.index.tolist()
-    positions = compute_string_positions(strings, object_ordering)
-    g = nx.Graph()
-    hist = {}
-    for id, name in result.iteritems():
-        g.add_node(id, label=name)
-    for (s, r), pos in list(positions.items()):
-        featuresRow = get_features(img_ann, "", s, r, positions)
-        subject = result[s]
-        reference = result.loc[r]
-        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-        g.add_edge(s, r, pos=prediction)
-        if (subject, reference) not in hist.keys():
-            hist[subject, reference] = {prediction: 1}
-        else:
-            hist[subject, reference].update({prediction: 0})
-            hist[subject, reference][prediction] += 1
-    return g, hist
+        result = merge['name'].sort_values()
+        img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+        strings = image2strings(img_ann)
+        object_ordering = result.index.tolist()
+        positions = compute_string_positions(strings, object_ordering)
+        g = nx.Graph()
+        hist = {}
+        for id, name in result.iteritems():
+            g.add_node(id, label=name)
+        for (s, r), pos in list(positions.items()):
+            featuresRow = get_features(img_ann, "", s, r, positions)
+            subject = result[s]
+            reference = result.loc[r]
+            prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+            g.add_edge(s, r, pos=prediction)
+            if (subject, reference) not in hist.keys():
+                hist[subject, reference] = {prediction: 1}
+            else:
+                hist[subject, reference].update({prediction: 0})
+                hist[subject, reference][prediction] += 1
+        return g, hist
+    except Exception as e:
+        print('Caught exception in analyze_image:')
+        traceback.print_exc()
+        return None
 
 
 def run_tasks(json_file, annot_folder, model):

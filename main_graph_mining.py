@@ -1,8 +1,8 @@
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.gspan_mining.graph import json_to_nx
+from semantic_analysis.gspan_mining.graph import json_to_nx, print_graph_picture
 from semantic_analysis.gspan_mining.gspan import gSpan
-from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, gspan_to_final_graphs
+from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, gspan_to_final_graphs, _read_graphs
 
 from config import position_dataset_res_dir, kb_freq_graphs_path, train_graphs_json_path
 import json
@@ -23,15 +23,25 @@ def graph_mining():
     prepare_gspan_graph_data(train_graphs_data_path, train_graphs_json_path)
 
     # Apply mining algorithm
-    gs = gSpan(
-        database_file_name=train_graphs_data_path,
-        min_support=4,  # 5000,
-        verbose=False,
-        visualize=False,
-    )
-    gs.run()
-    gs.time_stats()
-    freq_graphs = gspan_to_final_graphs(gs.get_result())
+    # gs = gSpan(
+    #     database_file_name=train_graphs_data_path,
+    #     min_support=40,  # 50 troppo poco. 60 e' ok
+    #     verbose=False,
+    #     visualize=False,
+    # )
+    # gs.run()
+    # gs.time_stats()
+    # freq_graphs = gspan_to_final_graphs(gs.get_result())
+    # print("Saving frequent graphs...")
+    # with open(kb_freq_graphs_path, 'w') as f:
+    #     f.write(json.dumps(freq_graphs))
+    # print("Done.")
+
+    print("Mining...")
+    ############# Con supporto 0.01 ci mette 899 secondi e trova 11500 grafi frequenti
+    os.system('./gSpan-64 -f ../COCO/positionDataset/results/train_graphs.data -s 0.02 -o')
+    print("Done.")
+    freq_graphs = _read_graphs('../COCO/positionDataset/results/train_graphs.data.fp')
     print("Saving frequent graphs...")
     with open(kb_freq_graphs_path, 'w') as f:
         f.write(json.dumps(freq_graphs))
@@ -64,9 +74,8 @@ def main():
                 # nx.draw_networkx_labels(g, pos, labels=g.nodes)
                 #
                 # #nx.draw_networkx_labels(g, pos=nx.spring_layout(g))
-                A = nx.drawing.nx_agraph.to_agraph(g)
-                A.layout('dot')
-                A.draw(f"../COCO/kb/charts/g{i}.png")
+
+                print_graph_picture(f"../COCO/kb/charts/g{i}.png", g)
                 i+=1
                 #plt.tight_layout()
 

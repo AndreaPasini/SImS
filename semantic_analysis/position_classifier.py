@@ -18,7 +18,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from tqdm import tqdm
 
-from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, train_graphs_json_path
+from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
+    train_graphs_json_path, COCO_train_json_path, COCO_ann_train_dir
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
@@ -287,7 +288,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
 
 def analyze_statics(fileModel_path):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(COCO_val_json_path, COCO_ann_val_dir, loaded_model)
+    run_tasks(COCO_train_json_path, COCO_ann_train_dir, loaded_model)
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):

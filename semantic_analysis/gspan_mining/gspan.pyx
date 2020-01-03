@@ -311,11 +311,13 @@ class gSpan(object):
                     root[(v.vlb, e.elb, g.vertices[e.to].vlb)].append(
                         PDFS(gid, e, None)
                     )
-
+        i=0
         for vevlb, projected in root.items():
             self._DFScode.append(DFSedge(0, 1, vevlb))
             self._subgraph_mining(projected)
             self._DFScode.pop()
+            print(f"done {i}")
+            i=i+1
 
     def _get_support(self, projected):
         return len(set([pdfs.gid for pdfs in projected]))

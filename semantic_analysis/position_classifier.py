@@ -1,3 +1,5 @@
+import traceback
+
 import matplotlib
 import numpy as np
 import pandas as pd
@@ -8,7 +10,7 @@ from multiprocessing.pool import Pool
 from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
-import easygui
+import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
@@ -19,23 +21,27 @@ from sklearn.svm import SVC
 from tqdm import tqdm
 
 from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
-    train_graphs_json_path, COCO_train_json_path, COCO_ann_train_dir
+    train_graphs_json_path
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import nx_to_json
+from scipy.stats import entropy
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
+
 
 def checkClassifier(classifier):
     if not any(classifier):
-        easygui.msgbox("You must choose a classifier!", title="Classifier")
+        print("You must choose a classifier!")
+        sys.exit(0)
     elif sum(classifier) == 1:
         index = int(" ".join(str(x) for x in np.argwhere(classifier)[0]))
         return index
     else:
-        easygui.msgbox("You must choose only a classifier!", title="Classifier")
+        print("You must choose only a classifier!")
+        sys.exit(0)
 
 
 def validate_classifiers_grid_search():
@@ -286,38 +292,44 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def analyze_statics(fileModel_path):
+def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(COCO_train_json_path, COCO_ann_train_dir, loaded_model)
+    run_tasks(COCO_json_path, COCO_ann_dir, loaded_model)
 
 
 def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
-    catInf = pd.DataFrame(cat_info).T
-    segInfoDf = pd.DataFrame(segments_info)
-    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                      join='inner').set_index('id')
+    try:
+        catInf = pd.DataFrame(cat_info).T
+        segInfoDf = pd.DataFrame(segments_info)
+        merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                          join='inner').set_index('id')
 
-    result = merge['name'].sort_values()
-    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-    strings = image2strings(img_ann)
-    object_ordering = result.index.tolist()
-    positions = compute_string_positions(strings, object_ordering)
-    g = nx.Graph()
-    hist = {}
-    for id, name in result.iteritems():
-        g.add_node(id, label=name)
-    for (s, r), pos in list(positions.items()):
-        featuresRow = get_features(img_ann, "", s, r, positions)
-        subject = result[s]
-        reference = result.loc[r]
-        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-        g.add_edge(s, r, pos=prediction)
-        if (subject, reference) not in hist.keys():
-            hist[subject, reference] = {prediction: 1}
-        else:
-            hist[subject, reference].update({prediction: 0})
-            hist[subject, reference][prediction] += 1
-    return g, hist
+        result = merge['name'].sort_values()
+        img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+        strings = image2strings(img_ann)
+        object_ordering = result.index.tolist()
+        positions = compute_string_positions(strings, object_ordering)
+        g = nx.Graph()
+        hist = {}
+        for id, name in result.iteritems():
+            g.add_node(id, label=name)
+        for (s, r), pos in list(positions.items()):
+            featuresRow = get_features(img_ann, "", s, r, positions)
+            subject = result[s]
+            reference = result.loc[r]
+            prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+            g.add_edge(s, r, pos=prediction)
+            if (subject, reference) not in hist.keys():
+                hist[subject, reference] = {prediction: 1}
+            else:
+                hist[subject, reference].update({prediction: 0})
+                hist[subject, reference][prediction] += 1
+        return g, hist
+    except Exception as e:
+        print('Caught exception in analyze_image:')
+        traceback.print_exc()
+        return None
+
 
 def run_tasks(json_file, annot_folder, model):
     """
@@ -364,10 +376,10 @@ def run_tasks(json_file, annot_folder, model):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    saveToJson(train_graphs_json_path, resultGraph)
+    with open(train_graphs_json_path, "w") as f:
+        json.dump(resultGraph, f)
 
     histograms = {}
-    positionDict = {}
 
     # Add up all histogram statistics
     for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
@@ -383,23 +395,25 @@ def run_tasks(json_file, annot_folder, model):
                 else:
                     total_hist[key] = hist[key]
 
-
     for hist in histograms.values():
-        sup = sum(hist.values())    # support: sum of all occurrences in the histogram
+        sup = sum(hist.values())  # support: sum of all occurrences in the histogram
+        ent = []
         for pos, count in hist.items():
-            hist[pos] = count / sup
+            perc = count / sup
+            hist[pos] = perc
+            ent.append(perc)
         hist['sup'] = sup
+        hist['entropy'] = entropy(ent, base=2)
+
+
 
     if not os.path.isdir(kb_dir):
         os.makedirs(kb_dir)
-    saveToJson(kb_pairwise_json_path, histograms)############################TODO: key ('cabinet-merged', 'floor-wood') is not a string
+    with open(kb_pairwise_json_path, "w") as f:
+        json.dump({str(k): v for k, v in histograms.items()}, f)
+
     pbar.close()
     print("Done")
-
-
-def saveToJson(path, dict):
-    with open(path, "w") as f:
-        json.dump(dict, f)
 
 
 def removeFile(filePath):

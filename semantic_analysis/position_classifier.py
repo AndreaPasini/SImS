@@ -21,7 +21,7 @@ from sklearn.svm import SVC
 from tqdm import tqdm
 
 from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
-    train_graphs_json_path
+    train_graphs_json_path, COCO_panoptic_cat_info_path, cnn_graphs_json_path
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
@@ -292,12 +292,12 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir):
+def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(COCO_json_path, COCO_ann_dir, loaded_model)
+    run_tasks(COCO_json_path, COCO_ann_dir, loaded_model, cnnFlag)
 
 
-def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
+def analyze_image(image_name, segments_info, cat_info, annot_folder, model, cnnFlag):
     try:
         catInf = pd.DataFrame(cat_info).T
         segInfoDf = pd.DataFrame(segments_info)
@@ -319,11 +319,12 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
             reference = result.loc[r]
             prediction = model.predict([np.asarray(featuresRow[3:])])[0]
             g.add_edge(s, r, pos=prediction)
-            if (subject, reference) not in hist.keys():
-                hist[subject, reference] = {prediction: 1}
-            else:
-                hist[subject, reference].update({prediction: 0})
-                hist[subject, reference][prediction] += 1
+            if not cnnFlag:
+                if (subject, reference) not in hist.keys():
+                    hist[subject, reference] = {prediction: 1}
+                else:
+                    hist[subject, reference].update({prediction: 0})
+                    hist[subject, reference][prediction] += 1
         return g, hist
     except Exception as e:
         print('Caught exception in analyze_image:')
@@ -331,7 +332,7 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model):
         return None
 
 
-def run_tasks(json_file, annot_folder, model):
+def run_tasks(json_file, annot_folder, model, cnnFlag):
     """
     Run tasks: analyze training annotations
     :param json_file: annotation file with classes for each segment
@@ -344,8 +345,13 @@ def run_tasks(json_file, annot_folder, model):
         cat_dict = {}
         for img_ann in json_data['annotations']:
             annot_dict[img_ann['file_name']] = img_ann['segments_info']
-        for img_ann in json_data['categories']:
-            cat_dict[img_ann['id']] = img_ann
+        if cnnFlag:
+            with open(COCO_panoptic_cat_info_path, 'r') as f:
+                categories_list = json.load(f)
+            cat_dict = {el['id']: el for el in categories_list}
+        else:
+            for img_ann in json_data['categories']:
+                cat_dict[img_ann['id']] = img_ann
     # Get files to be analyzed
     files = sorted(listdir(annot_folder))
 
@@ -361,7 +367,8 @@ def run_tasks(json_file, annot_folder, model):
     results = []
 
     for img in files:
-        results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model),
+        if img.endswith('.png'):
+            results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model, cnnFlag),
                                         callback=update))
     pool.close()
     pool.join()
@@ -376,41 +383,42 @@ def run_tasks(json_file, annot_folder, model):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    with open(train_graphs_json_path, "w") as f:
+    with open(cnn_graphs_json_path if cnnFlag else train_graphs_json_path, "w") as f:
         json.dump(resultGraph, f)
 
-    histograms = {}
+    if not cnnFlag:
+        histograms = {}
 
-    # Add up all histogram statistics
-    for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
-        if pair not in histograms:
-            # add histogram as it is if pair is not existing
-            histograms[pair] = hist
-        else:
-            total_hist = histograms[pair]
-            # update histograms if pair already existing
-            for key in hist:
-                if key in total_hist:
-                    total_hist[key] += hist[key]
-                else:
-                    total_hist[key] = hist[key]
+        # Add up all histogram statistics
+        for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
+            if pair not in histograms:
+                # add histogram as it is if pair is not existing
+                histograms[pair] = hist
+            else:
+                total_hist = histograms[pair]
+                # update histograms if pair already existing
+                for key in hist:
+                    if key in total_hist:
+                        total_hist[key] += hist[key]
+                    else:
+                        total_hist[key] = hist[key]
 
-    for hist in histograms.values():
-        sup = sum(hist.values())  # support: sum of all occurrences in the histogram
-        ent = []
-        for pos, count in hist.items():
-            perc = count / sup
-            hist[pos] = perc
-            ent.append(perc)
-        hist['sup'] = sup
-        hist['entropy'] = entropy(ent, base=2)
+        for hist in histograms.values():
+            sup = sum(hist.values())  # support: sum of all occurrences in the histogram
+            ent = []
+            for pos, count in hist.items():
+                perc = count / sup
+                hist[pos] = perc
+                ent.append(perc)
+            hist['sup'] = sup
+            hist['entropy'] = entropy(ent, base=2)
 
 
 
-    if not os.path.isdir(kb_dir):
-        os.makedirs(kb_dir)
-    with open(kb_pairwise_json_path, "w") as f:
-        json.dump({str(k): v for k, v in histograms.items()}, f)
+        if not os.path.isdir(kb_dir):
+            os.makedirs(kb_dir)
+        with open(kb_pairwise_json_path, "w") as f:
+            json.dump({str(k): v for k, v in histograms.items()}, f)
 
     pbar.close()
     print("Done")

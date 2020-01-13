@@ -5,7 +5,7 @@
 """
 from datetime import datetime
 from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
-    COCO_ann_train_dir
+    COCO_ann_train_dir, output_panoptic_json_path, output_panoptic_path
 from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics, \
     validate_classifiers_grid_search
 
@@ -30,7 +30,8 @@ use_analyze_statics = True
 
 ###  CHOOSE SET OF IMAGES ###
 use_validation_image = False
-use_train_image = True
+use_train_image = False
+use_panoptic_image = True
 ####################
 
 
@@ -49,10 +50,12 @@ if __name__ == "__main__":
         build_final_model(position_classifier_path, classifier)
     elif use_analyze_statics:
         if use_validation_image:
-            COCO_json_path, COCO_ann_dir = COCO_val_json_path, COCO_ann_val_dir
+            COCO_json_path, COCO_ann_dir, cnnFlag = COCO_val_json_path, COCO_ann_val_dir, False
         elif use_train_image:
-            COCO_json_path, COCO_ann_dir = COCO_train_json_path, COCO_ann_train_dir
-        analyze_statics(position_classifier_path, COCO_json_path, COCO_ann_dir)
+            COCO_json_path, COCO_ann_dir, cnnFlag = COCO_train_json_path, COCO_ann_train_dir, False
+        elif use_panoptic_image:
+            COCO_json_path, COCO_ann_dir, cnnFlag = output_panoptic_json_path, output_panoptic_path, True
+        analyze_statics(position_classifier_path, COCO_json_path, COCO_ann_dir, cnnFlag)
 
     end_time = datetime.now()
     print("Done.")

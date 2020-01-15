@@ -1,8 +1,10 @@
 import json
 import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 json_path_kb_histograms = '../COCO/kb/pairwiseKB.json'
 charts_path = '../COCO/kb/charts'
 support_distplot_path = '../COCO/kb/charts/support_distplot.png'
@@ -10,15 +12,18 @@ entropy_distplot_path = '../COCO/kb/charts/entropy_distplot.png'
 hist_path = '../COCO/kb/charts/hist.png'
 boxplot_path = '../COCO/kb/charts/boxplot.png'
 
+
 def calcBins(data):
     #return np.arange(min(data), max(data), 5)
     return np.round(np.linspace(min(data), 500, 100))#max(data),500))
+
 
 def createBoxPlot(sup):
     fig, ax2 = plt.subplots(1, 1, figsize=(5, 4))
     ax2.set_title('Support Distribution')
     ax2.boxplot(sup, vert=False, whis=0.50)
     plt.savefig(boxplot_path)
+
 
 def createHistogram(sup):
     bins = np.round(np.linspace(min(sup), 500, 50)) #calcBins(sup)
@@ -28,6 +33,7 @@ def createHistogram(sup):
     plt.xlabel('Support')
     plt.savefig(hist_path)
 
+
 def createHistPlot(data, nameLabel, autoBins, distplot_path):
     bins = 'auto' if autoBins else calcBins(data)
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
@@ -36,6 +42,7 @@ def createHistPlot(data, nameLabel, autoBins, distplot_path):
 
 
 if __name__ == "__main__":
+
     if not os.path.isdir(charts_path):
         os.makedirs(charts_path)
 
@@ -68,6 +75,7 @@ if __name__ == "__main__":
     # evaluate the cumulative
     #cumulative = np.cumsum(np.sort(sup))
     # plot the cumulative function
+
 
     sup = np.array(sup)
     ent = np.array(ent)

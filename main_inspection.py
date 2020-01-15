@@ -26,6 +26,8 @@ output_panoptic_path = '../COCO/output/panoptic'
 OFFSET = 256 * 256 * 256
 VOID = 0
 
+
+
 # Find false positives among images and display
 def find_fp(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
 

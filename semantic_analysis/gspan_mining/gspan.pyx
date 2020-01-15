@@ -1,3 +1,26 @@
+# Usage:
+# Apply mining algorithm
+# gs = gSpan(
+#     database_file_name=train_graphs_data_path,
+#     min_support=40,  # 50 troppo poco. 60 e' ok
+#     verbose=False,
+#     visualize=False,
+# )
+# gs.run()
+# gs.time_stats()
+# freq_graphs = gspan_to_final_graphs(gs.get_result())
+# print("Saving frequent graphs...")
+# with open(kb_freq_graphs_path, 'w') as f:
+#     f.write(json.dumps(freq_graphs))
+# print("Done.")
+
+
+
+
+
+
+
+
 """Implementation of gSpan."""
 from __future__ import absolute_import
 from __future__ import division

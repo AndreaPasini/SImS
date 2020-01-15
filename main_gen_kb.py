@@ -9,7 +9,7 @@ pyximport.install(language_level=3)
 from datetime import datetime
 from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
     COCO_ann_train_dir, output_panoptic_json_path, output_panoptic_path
-from semantic_analysis.position_classifier import validate_classifiers, build_final_model, analyze_statics, \
+from semantic_analysis.position_classifier import validate_classifiers, build_final_model, generate_kb, \
     validate_classifiers_grid_search
 from semantic_analysis.knowledge_base import generate_kb
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             COCO_json_path, COCO_ann_dir, cnnFlag = COCO_train_json_path, COCO_ann_train_dir, False
         elif use_panoptic_image:
             COCO_json_path, COCO_ann_dir, cnnFlag = output_panoptic_json_path, output_panoptic_path, True
-        analyze_statics(position_classifier_path, COCO_json_path, COCO_ann_dir, cnnFlag)
+        generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir, cnnFlag)
 
     end_time = datetime.now()
     print("Done.")

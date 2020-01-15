@@ -292,7 +292,7 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def analyze_statics(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag):
+def generate_kb(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
     run_tasks(COCO_json_path, COCO_ann_dir, loaded_model, cnnFlag)
 

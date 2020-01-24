@@ -11,7 +11,7 @@ from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_di
     COCO_ann_train_dir, output_panoptic_json_path, output_panoptic_path
 from semantic_analysis.position_classifier import validate_classifiers, build_final_model, generate_kb, \
     validate_classifiers_grid_search
-from semantic_analysis.knowledge_base import generate_kb
+#from semantic_analysis.knowledge_base import generate_kb
 
 ### CONFIGURATION ###
 output_path = '../COCO/positionDataset/results/evaluation.txt'
@@ -34,8 +34,7 @@ use_generate_kb = True              # Generate knowledge base: save graphs and h
 
 ###  CHOOSE SET OF IMAGES ###
 use_validation_image = False
-use_train_image = False
-use_panoptic_image = True
+use_train_image = True
 ####################
 
 
@@ -54,12 +53,10 @@ if __name__ == "__main__":
         build_final_model(position_classifier_path, classifier)
     elif use_generate_kb:
         if use_validation_image:
-            COCO_json_path, COCO_ann_dir, cnnFlag = COCO_val_json_path, COCO_ann_val_dir, False
+            COCO_json_path, COCO_ann_dir = COCO_val_json_path, COCO_ann_val_dir
         elif use_train_image:
-            COCO_json_path, COCO_ann_dir, cnnFlag = COCO_train_json_path, COCO_ann_train_dir, False
-        elif use_panoptic_image:
-            COCO_json_path, COCO_ann_dir, cnnFlag = output_panoptic_json_path, output_panoptic_path, True
-        generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir, cnnFlag)
+            COCO_json_path, COCO_ann_dir = COCO_train_json_path, COCO_ann_train_dir
+        generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir)
 
     end_time = datetime.now()
     print("Done.")

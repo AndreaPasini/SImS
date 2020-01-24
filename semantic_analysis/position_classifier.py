@@ -21,7 +21,7 @@ from sklearn.svm import SVC
 from tqdm import tqdm
 
 from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
-    train_graphs_json_path, COCO_panoptic_cat_info_path, cnn_graphs_json_path
+    train_graphs_json_path, COCO_panoptic_cat_info_path, val_panoptic_graphs
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
@@ -292,12 +292,12 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def generate_kb(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag):
+def generate_kb(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag=False):
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
     run_tasks(COCO_json_path, COCO_ann_dir, loaded_model, cnnFlag)
 
 
-def analyze_image(image_name, segments_info, cat_info, annot_folder, model, cnnFlag):
+def analyze_image(image_name, segments_info, image_id, cat_info, annot_folder, model, cnnFlag):
     try:
         catInf = pd.DataFrame(cat_info).T
         segInfoDf = pd.DataFrame(segments_info)
@@ -311,6 +311,7 @@ def analyze_image(image_name, segments_info, cat_info, annot_folder, model, cnnF
         positions = compute_string_positions(strings, object_ordering)
         g = nx.Graph()
         hist = {}
+        g.name = image_id
         for id, name in result.iteritems():
             g.add_node(id, label=name)
         for (s, r), pos in list(positions.items()):
@@ -343,8 +344,11 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
         json_data = json.load(f)
         annot_dict = {}
         cat_dict = {}
+        id_dict = {}
         for img_ann in json_data['annotations']:
             annot_dict[img_ann['file_name']] = img_ann['segments_info']
+        for img_ann in json_data['annotations']:
+            id_dict[img_ann['file_name']] = img_ann['image_id']
         if cnnFlag:
             with open(COCO_panoptic_cat_info_path, 'r') as f:
                 categories_list = json.load(f)
@@ -368,7 +372,7 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
 
     for img in files:
         if img.endswith('.png'):
-            results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], cat_dict, annot_folder, model, cnnFlag),
+            results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], cat_dict, annot_folder, model, cnnFlag),
                                         callback=update))
     pool.close()
     pool.join()
@@ -383,7 +387,7 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    with open(cnn_graphs_json_path if cnnFlag else train_graphs_json_path, "w") as f:
+    with open(val_panoptic_graphs if cnnFlag else train_graphs_json_path, "w") as f:
         json.dump(resultGraph, f)
 
     if not cnnFlag:

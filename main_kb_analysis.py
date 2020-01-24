@@ -1,9 +1,10 @@
 import json
 import os
-
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+from config import kb_clean_pairwise_json_path
 
 json_path_kb_histograms = '../COCO/kb/pairwiseKB.json'
 charts_path = '../COCO/kb/charts'
@@ -14,8 +15,8 @@ boxplot_path = '../COCO/kb/charts/boxplot.png'
 
 
 def calcBins(data):
-    #return np.arange(min(data), max(data), 5)
-    return np.round(np.linspace(min(data), 500, 100))#max(data),500))
+    # return np.arange(min(data), max(data), 5)
+    return np.round(np.linspace(min(data), 500, 100))  # max(data),500))
 
 
 def createBoxPlot(sup):
@@ -26,7 +27,7 @@ def createBoxPlot(sup):
 
 
 def createHistogram(sup):
-    bins = np.round(np.linspace(min(sup), 500, 50)) #calcBins(sup)
+    bins = np.round(np.linspace(min(sup), 500, 50))  # calcBins(sup)
     plt.figure(figsize=(5, 4))
     plt.hist(sup, bins=bins)
     plt.ylabel('#Histograms')
@@ -42,7 +43,6 @@ def createHistPlot(data, nameLabel, autoBins, distplot_path):
 
 
 if __name__ == "__main__":
-
     if not os.path.isdir(charts_path):
         os.makedirs(charts_path)
 
@@ -52,40 +52,45 @@ if __name__ == "__main__":
     sup = [pro['sup'] for pro in json_data.values()]
     ent = [pro['entropy'] for pro in json_data.values()]
 
-    h1 = [h for h in json_data.values() if h['entropy']<=1.5 and h['entropy']>1.3 and h['sup']>50]
+    cleanKB = {k: v for k, v in json_data.items() if v['entropy'] <= 1 and v['sup'] > 50}
+
+    with open(kb_clean_pairwise_json_path, "w") as f:
+        json.dump({k: v for k, v in cleanKB.items()}, f)
+
+    # cleanKB= [k[v] for k,v in json_data.items() if v['entropy']<=1.5 and v['entropy']>1.3 and v['sup']>50]
 
     # support histogram plot
-    #createHistPlot(sup, 'Support', False, support_distplot_path)
+    # createHistPlot(sup, 'Support', False, support_distplot_path)
 
     # entropy histogram plot
-    #createHistPlot(ent, 'Entropy', False, entropy_distplot_path)
+    # createHistPlot(ent, 'Entropy', False, entropy_distplot_path)
 
     # support histogram
-    #createHistogram(sup)
+    # createHistogram(sup)
 
     # plt.figure(figsize=(10, 6))
     # values, base = np.histogram(sup, bins=200)
     # plt.plot(values, base[:-1], c='red', linestyle='', marker='o', markersize=2, markerfacecoloralt='tab:red')
     # plt.savefig(hist_path)
 
-    #plt.figure(figsize=(10, 6))
-    #values, base = np.histogram(sup, bins=200)
-    #values = values[::-1]
-    #base = base[::-1]
+    # plt.figure(figsize=(10, 6))
+    # values, base = np.histogram(sup, bins=200)
+    # values = values[::-1]
+    # base = base[::-1]
     # evaluate the cumulative
-    #cumulative = np.cumsum(np.sort(sup))
+    # cumulative = np.cumsum(np.sort(sup))
     # plot the cumulative function
-
 
     sup = np.array(sup)
     ent = np.array(ent)
-    mask = (ent<=1) & (sup>=50)
+    mask = (ent <= 1) & (sup >= 50)
     sup = sup[mask]
     ent = ent[mask]
 
     plt.figure(figsize=(10, 6))
     y = np.sort(sup)
-    plt.plot(np.arange(len(y)), np.log10(y), c='red', linestyle='', marker='o', markersize=2, markerfacecoloralt='tab:red')
+    plt.plot(np.arange(len(y)), np.log10(y), c='red', linestyle='', marker='o', markersize=2,
+             markerfacecoloralt='tab:red')
     plt.xlabel("data")
     plt.ylabel("Log(sup)")
     plt.grid()
@@ -124,6 +129,6 @@ if __name__ == "__main__":
     # plt.savefig(entropy_distplot_path)
 
     # support boxPlot
-    #createBoxPlot(sup)
+    # createBoxPlot(sup)
 
     print("Graphing Completed")

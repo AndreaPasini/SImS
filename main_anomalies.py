@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 from config import val_panoptic_graphs, likelihoods_json_path, output_panoptic_json_path, output_panoptic_path, \
     position_classifier_path, COCO_val_json_path, \
     COCO_ann_val_dir, kb_pairwise_json_path, kb_clean_pairwise_json_path, likelihoods_path, \
-    charts_anomalies_likelihoods_path, fp_chart, tp_chart
+    charts_anomalies_likelihoods_path, fp_chart, tp_chart, fp_tp_json_path
 from main_inspection import pq_inspection
 from semantic_analysis.position_classifier import generate_kb
 
 ###  CHOOSE FLOW ###
-generate_val_panoptic_graphs = True
+generate_val_panoptic_graphs = False
 compute_val_panoptic_likelihoods = True
 analyze_likelihoods = True
 ####################
@@ -62,7 +62,7 @@ if __name__ == "__main__":
                 try:
                     likelihood = item[(sub, ref)][pos]
                 except Exception:
-                    likelihood = 0.0
+                    likelihood = None
                 support = item[(sub, ref)]['sup']
                 entropy = item[(sub, ref)]['entropy']
                 pair = str(link['s']) + "," + str(link['r'])
@@ -85,14 +85,20 @@ if __name__ == "__main__":
             val_panoptic_likelihoods = json.load(f)
         fp = []
         tp = []
+        noLikelihoods = []
         for img in val_panoptic_likelihoods.values():
             for k, v in img['pairs'].items():
-                objs = k.split(",")
-                if int(objs[0]) in img['fp'] or int(objs[1]) in img['fp']:
-                    fp.append(v['l'])
+                if v['l'] is not None:
+                    objs = k.split(",")
+                    if int(objs[0]) in img['fp'] or int(objs[1]) in img['fp']:
+                        fp.append(v['l'])
+                    else:
+                        tp.append(v['l'])
                 else:
-                    tp.append(v['l'])
-        likelihoods = {'fp': {'likelihood': fp}, 'tp': {'likelihood': tp}}
+                    noLikelihoods.append(k)
+        likelihoods = {'fp': {'likelihood': fp}, 'tp': {'likelihood': tp}, 'noLikelihoods': {'pairs': noLikelihoods}}
+        with open(fp_tp_json_path, "w") as f:
+            json.dump(likelihoods, f)
         plt.subplots(1, 1, figsize=(10, 6))
         sns.kdeplot(fp, shade=True, cut=0,  color="r", label='False Positive')
         sns.rugplot(fp, color="r")

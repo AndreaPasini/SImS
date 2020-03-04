@@ -64,7 +64,7 @@ def validate_classifiers_grid_search(output_path):
             print(gridSearch.best_params_)
 
             # Get best classifier from grid search
-            best_clf = gridSearch.best_estimator
+            best_clf = gridSearch.best_estimator_
             # Use leave-one out for printing its final evaluation
             y_pred = cross_val_predict(best_clf, X, y, cv=cv)
             dfAccuracy = getClassF1_df(y, y_pred, name, dfAccuracy)

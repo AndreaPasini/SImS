@@ -32,17 +32,6 @@ from scipy.stats import entropy
 from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
 
 
-def checkClassifier(classifier):
-    if not any(classifier):
-        print("You must choose a classifier!")
-        sys.exit(0)
-    elif sum(classifier) == 1:
-        index = int(" ".join(str(x) for x in np.argwhere(classifier)[0]))
-        return index
-    else:
-        print("You must choose only a classifier!")
-        sys.exit(0)
-
 
 def validate_classifiers_grid_search(output_path):
     inizializePath(position_dataset_res_dir)
@@ -82,33 +71,33 @@ def validate_classifiers_grid_search(output_path):
         print(e)
 
 
-def validate_classifiers(output_path):
-    inizializePath(position_dataset_res_dir)
-    data = pd.read_csv(pathFeaturesBalanced, sep=';')
-    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
-
-    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
-    y = np.array(data_img["Position"])
-
-    dfAccuracy = pd.DataFrame()
-    cv = LeaveOneOut()
-    names, classifiers = getClassifiers()
-    try:
-        for nameClf, clf in zip(names, classifiers):
-            print(nameClf)
-            y_pred = cross_val_predict(clf, X, y, cv=cv)
-            dfAccuracy = getClassF1_df(y, y_pred, nameClf, dfAccuracy)
-            getConfusionMatrix(y, y_pred, nameClf, dfAccuracy.tail())
-        dfAccuracy.plot.bar()
-        dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
-        print(dfAccuracy.head().to_string())
-        resultFile = open(output_path, "w+")
-        resultFile.writelines('F1 Score\n\n')
-        resultFile.writelines(dfAccuracy.head().to_string())
-        resultFile.close()
-
-    except ValueError as e:
-        print(e)
+# def validate_classifiers(output_path):
+#     inizializePath(position_dataset_res_dir)
+#     data = pd.read_csv(pathFeaturesBalanced, sep=';')
+#     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
+#
+#     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
+#     y = np.array(data_img["Position"])
+#
+#     dfAccuracy = pd.DataFrame()
+#     cv = LeaveOneOut()
+#     names, classifiers = getClassifiers()
+#     try:
+#         for nameClf, clf in zip(names, classifiers):
+#             print(nameClf)
+#             y_pred = cross_val_predict(clf, X, y, cv=cv)
+#             dfAccuracy = getClassF1_df(y, y_pred, nameClf, dfAccuracy)
+#             getConfusionMatrix(y, y_pred, nameClf, dfAccuracy.tail())
+#         dfAccuracy.plot.bar()
+#         dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
+#         print(dfAccuracy.head().to_string())
+#         resultFile = open(output_path, "w+")
+#         resultFile.writelines('F1 Score\n\n')
+#         resultFile.writelines(dfAccuracy.head().to_string())
+#         resultFile.close()
+#
+#     except ValueError as e:
+#         print(e)
 
 
 def getClassifiersGridSearch():
@@ -126,38 +115,36 @@ def getClassifiersGridSearch():
     return classifiers
 
 
-def getClassifiers():
-    names = ["Nearest Neighbors",
-             "Linear SVM",
-             "RBF SVM",
-             "Decision Tree",
-             "Random Forest",
-             "Naive Bayes"]
-    classifiers = [
-        KNeighborsClassifier(5),
-        SVC(kernel="linear", C=0.025),
-        SVC(gamma='auto'),
-        DecisionTreeClassifier(max_depth=10),
-        RandomForestClassifier(max_depth=20, n_estimators=35, random_state=0),
-        GaussianNB()]
-    return names, classifiers
+# def getClassifiers():
+#     names = ["Nearest Neighbors",
+#              "Linear SVM",
+#              "RBF SVM",
+#              "Decision Tree",
+#              "Random Forest",
+#              "Naive Bayes"]
+#     classifiers = [
+#         KNeighborsClassifier(5),
+#         SVC(kernel="linear", C=0.025),
+#         SVC(gamma='auto'),
+#         DecisionTreeClassifier(max_depth=10),
+#         RandomForestClassifier(max_depth=20, n_estimators=35, random_state=0),
+#         GaussianNB()]
+#     return names, classifiers
 
 
-def build_final_model(fileModel, classifier):
+def build_final_model(fileModel, final_classifier):
     inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
     y = np.array(data_img["Position"])
-    index = checkClassifier(classifier)
-    # Fit the model on training set
-    names, classifiers = getClassifiers()
-    model = classifiers[index]
-    model.fit(X, y)
-    # save the model to disk
+
+    # Fit model
+    final_classifier.fit(X, y)
+    # Save model to disk
     removeFile(fileModel)
-    pickle.dump(model, open(fileModel, 'wb'))
+    pickle.dump(final_classifier, open(fileModel, 'wb'))
 
 
 def getClassF1_df(y, y_pred, nameClf, dfAccuracy):

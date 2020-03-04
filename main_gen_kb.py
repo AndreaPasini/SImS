@@ -4,6 +4,8 @@
 
 """
 import pyximport
+from sklearn.ensemble import RandomForestClassifier
+
 pyximport.install(language_level=3)
 
 from datetime import datetime
@@ -27,30 +29,25 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = True    # Run cross-validation for relative-position classifiers
-use_build_final_model = False       # Build relative-position classifier, final model
+use_validate_classifiers = False    # Run cross-validation for relative-position classifiers
+use_build_final_model = True       # Build relative-position classifier, final model
 use_generate_kb = False              # Generate knowledge base: save graphs and histograms
 ####################
 
 ###  CHOOSE SET OF IMAGES FOR BUILDING THE KNOWLEDGE BASE ###
 use_validation_image = False        # Build KB on COCO validation images (5,000)
 use_train_image = True              # Build KB on COCO training images (118,287)
+final_classifier = RandomForestClassifier(max_depth = 10, n_estimators = 35) # Best model selected by grid-search
 ####################
 
 
 if __name__ == "__main__":
     start_time = datetime.now()
-    classifier = [Nearest_Neighbors,
-                  Linear_SVM,
-                  RBF_SVM,
-                  Decision_Tree,
-                  Random_Forest,
-                  Naive_Bayes]
+
     if use_validate_classifiers:
         validate_classifiers_grid_search(output_path)
-        #validate_classifiers(output_path)
     elif use_build_final_model:
-        build_final_model(position_classifier_path, classifier)
+        build_final_model(position_classifier_path, final_classifier)
     elif use_generate_kb:
         if use_validation_image:
             COCO_json_path, COCO_ann_dir = COCO_val_json_path, COCO_ann_val_dir

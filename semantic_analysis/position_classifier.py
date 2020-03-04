@@ -61,22 +61,22 @@ def validate_classifiers_grid_search(output_path):
             gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
             gridSearch.fit(X, y)
             print(f"- {name}, F1: {gridSearch.best_score_:.3f}")
-            print(gridSearch.best_params_)
+            #print(gridSearch.best_params_)
 
-            # Get best classifier from grid search
-            best_clf = gridSearch.best_estimator_
-            # Use leave-one out for printing its final evaluation
-            y_pred = cross_val_predict(best_clf, X, y, cv=cv)
-            dfAccuracy = getClassF1_df(y, y_pred, name, dfAccuracy)
-            getConfusionMatrix(y, y_pred, name, dfAccuracy.tail())
+            # # Get best classifier from grid search
+            # best_clf = gridSearch.best_estimator_
+            # # Use leave-one out for printing its final evaluation
+            # y_pred = cross_val_predict(best_clf, X, y, cv=cv)
+            # dfAccuracy = getClassF1_df(y, y_pred, name, dfAccuracy)
+            # getConfusionMatrix(y, y_pred, name, dfAccuracy.tail())
 
-        dfAccuracy.plot.bar()
-        dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
-        print(dfAccuracy.head().to_string())
-        resultFile = open(output_path, "w+")
-        resultFile.writelines('F1 Score\n\n')
-        resultFile.writelines(dfAccuracy.head().to_string())
-        resultFile.close()
+        # dfAccuracy.plot.bar()
+        # dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
+        # print(dfAccuracy.head().to_string())
+        # resultFile = open(output_path, "w+")
+        # resultFile.writelines('F1 Score\n\n')
+        # resultFile.writelines(dfAccuracy.head().to_string())
+        # resultFile.close()
 
     except ValueError as e:
         print(e)

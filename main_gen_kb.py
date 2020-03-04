@@ -10,8 +10,8 @@ pyximport.install(language_level=3)
 
 from datetime import datetime
 from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
-    COCO_ann_train_dir
-from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, generate_kb
+    COCO_ann_train_dir, train_graphs_json_path
+from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, create_kb_graphs
 
 
 ### CONFIGURATION ###
@@ -29,8 +29,8 @@ Naive_Bayes = False
 
 ###  CHOOSE FLOW ###
 use_validate_classifiers = False    # Run cross-validation for relative-position classifiers
-use_build_final_model = True       # Build relative-position classifier, final model
-use_generate_kb = False              # Generate knowledge base: save graphs and histograms
+use_build_final_model = False       # Build relative-position classifier, final model
+use_generate_kb = True              # Generate knowledge base: save graphs and histograms
 ####################
 
 ###  CHOOSE SET OF IMAGES FOR BUILDING THE KNOWLEDGE BASE ###
@@ -52,7 +52,9 @@ if __name__ == "__main__":
             COCO_json_path, COCO_ann_dir = COCO_val_json_path, COCO_ann_val_dir
         elif use_train_image:
             COCO_json_path, COCO_ann_dir = COCO_train_json_path, COCO_ann_train_dir
-        generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir)
+        # Apply position classifier to images and compute graphs
+        create_kb_graphs(position_classifier_path, COCO_json_path, COCO_ann_dir, train_graphs_json_path)
+        #generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir)
 
     end_time = datetime.now()
     print("Done.")

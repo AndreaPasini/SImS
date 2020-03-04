@@ -300,55 +300,20 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def generate_kb(fileModel_path, COCO_json_path, COCO_ann_dir, cnnFlag=False):
+def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_json_path):
+    """
+    Analyze annotations, by applying classifier
+    Generate image graphs, with descriptions
+    :param fileModel_path: path to relative position model
+    :param COCO_json_path: annotation file with classes for each segment (either CNN annotations or ground-truth)
+    :param COCO_ann_dir: folder with png annotations (either CNN annotations or ground-truth)
+    :param out_graphs_json_path: output json file with graphs
+    """
+
     loaded_model = pickle.load(open(fileModel_path, 'rb'))
-    run_tasks(COCO_json_path, COCO_ann_dir, loaded_model, cnnFlag)
 
-
-def analyze_image(image_name, segments_info, image_id, cat_info, annot_folder, model, cnnFlag):
-    try:
-        catInf = pd.DataFrame(cat_info).T
-        segInfoDf = pd.DataFrame(segments_info)
-        merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                          join='inner').set_index('id')
-
-        result = merge['name'].sort_values()
-        img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-        strings = image2strings(img_ann)
-        object_ordering = result.index.tolist()
-        positions = compute_string_positions(strings, object_ordering)
-        g = nx.Graph()
-        hist = {}
-        g.name = image_id
-        for id, name in result.iteritems():
-            g.add_node(id, label=name)
-        for (s, r), pos in list(positions.items()):
-            featuresRow = get_features(img_ann, "", s, r, positions)
-            subject = result[s]
-            reference = result.loc[r]
-            prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-            g.add_edge(s, r, pos=prediction)
-            if not cnnFlag:
-                if (subject, reference) not in hist.keys():
-                    hist[subject, reference] = {prediction: 1}
-                else:
-                    hist[subject, reference].update({prediction: 0})
-                    hist[subject, reference][prediction] += 1
-        return g, hist
-    except Exception as e:
-        print('Caught exception in analyze_image:')
-        traceback.print_exc()
-        return None
-
-
-def run_tasks(json_file, annot_folder, model, cnnFlag):
-    """
-    Run tasks: analyze training annotations
-    :param json_file: annotation file with classes for each segment
-    :param annot_folder: folder with png annotations
-    """
     # Load annotations
-    with open(json_file, 'r') as f:
+    with open(COCO_json_path, 'r') as f:
         json_data = json.load(f)
         annot_dict = {}
         cat_dict = {}
@@ -357,15 +322,14 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
             annot_dict[img_ann['file_name']] = img_ann['segments_info']
         for img_ann in json_data['annotations']:
             id_dict[img_ann['file_name']] = img_ann['image_id']
-        if cnnFlag:
-            with open(COCO_panoptic_cat_info_path, 'r') as f:
-                categories_list = json.load(f)
-            cat_dict = {el['id']: el for el in categories_list}
-        else:
-            for img_ann in json_data['categories']:
-                cat_dict[img_ann['id']] = img_ann
+        # if cnnFlag:
+        #     with open(COCO_panoptic_cat_info_path, 'r') as f:
+        #         categories_list = json.load(f)
+        #     cat_dict = {el['id']: el for el in categories_list}
+        # else:
+        cat_dict = {img_ann['id'] : img_ann for img_ann in json_data['categories']}
     # Get files to be analyzed
-    files = sorted(listdir(annot_folder))
+    files = sorted(listdir(COCO_ann_dir))
 
     # Init progress bar
     pbar = tqdm(total=len(files))
@@ -378,13 +342,16 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
     pool = Pool(10)
     results = []
 
+    # Analyze all images
     for img in files:
         if img.endswith('.png'):
-            results.append(pool.apply_async(analyze_image, args=(img, annot_dict[img], id_dict[img], cat_dict, annot_folder, model, cnnFlag),
-                                        callback=update))
+            results.append(pool.apply_async(compute_graph_from_image, args=(img, annot_dict[img], id_dict[img], cat_dict, COCO_ann_dir, loaded_model),
+                                            callback=update))
     pool.close()
     pool.join()
+    pbar.close()
 
+    # Collect Graph results
     resultGraph = []
     resultHist = []
     for img in results:
@@ -395,10 +362,125 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
             # Get position histograms for this image
             resultHist.append(hist)
 
-    with open(val_panoptic_graphs if cnnFlag else train_graphs_json_path, "w") as f:
+    # Write graphs to file
+    with open(out_graphs_json_path, "w") as f:
         json.dump(resultGraph, f)
 
-    if not cnnFlag:
+    print("Done")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def compute_graph_from_image(image_name, segments_info, image_id, cat_info, annot_folder, model):
+    # Apply position classifier to this image
+    # @return the image converted to graph
+    try:
+        catInf = pd.DataFrame(cat_info).T
+        segInfoDf = pd.DataFrame(segments_info)
+        merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                          join='inner').set_index('id')
+
+        result = merge['name'].sort_values()
+        img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+        strings = image2strings(img_ann)
+        object_ordering = result.index.tolist()
+        positions = compute_string_positions(strings, object_ordering)
+        g = nx.Graph()
+        g.name = image_id
+        for id, name in result.iteritems():
+            g.add_node(id, label=name)
+        for (s, r), pos in list(positions.items()):
+            featuresRow = get_features(img_ann, "", s, r, positions)
+            prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+            g.add_edge(s, r, pos=prediction)
+        return g
+    except Exception as e:
+        print('Caught exception in analyze_image:')
+        traceback.print_exc()
+        return None
+
+
+
+# def analyze_image(image_name, segments_info, image_id, cat_info, annot_folder, model, cnnFlag):
+#     try:
+#         catInf = pd.DataFrame(cat_info).T
+#         segInfoDf = pd.DataFrame(segments_info)
+#         merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+#                           join='inner').set_index('id')
+#
+#         result = merge['name'].sort_values()
+#         img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+#         strings = image2strings(img_ann)
+#         object_ordering = result.index.tolist()
+#         positions = compute_string_positions(strings, object_ordering)
+#         g = nx.Graph()
+#         hist = {}
+#         g.name = image_id
+#         for id, name in result.iteritems():
+#             g.add_node(id, label=name)
+#         for (s, r), pos in list(positions.items()):
+#             featuresRow = get_features(img_ann, "", s, r, positions)
+#             subject = result[s]
+#             reference = result.loc[r]
+#             prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+#             g.add_edge(s, r, pos=prediction)
+#             if not cnnFlag:
+#                 if (subject, reference) not in hist.keys():
+#                     hist[subject, reference] = {prediction: 1}
+#                 else:
+#                     hist[subject, reference].update({prediction: 0})
+#                     hist[subject, reference][prediction] += 1
+#         return g, hist
+#     except Exception as e:
+#         print('Caught exception in analyze_image:')
+#         traceback.print_exc()
+#         return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def create_histograms(json_file, annot_folder, model):
+
         histograms = {}
 
         # Add up all histogram statistics
@@ -432,8 +514,7 @@ def run_tasks(json_file, annot_folder, model, cnnFlag):
         with open(kb_pairwise_json_path, "w") as f:
             json.dump({str(k): v for k, v in histograms.items()}, f)
 
-    pbar.close()
-    print("Done")
+
 
 
 def removeFile(filePath):

@@ -47,8 +47,8 @@ if __name__ == "__main__":
                   Random_Forest,
                   Naive_Bayes]
     if use_validate_classifiers:
-        # validate_classifiers_grid_search()
-        validate_classifiers(output_path)
+        validate_classifiers_grid_search()
+        #validate_classifiers(output_path)
     elif use_build_final_model:
         build_final_model(position_classifier_path, classifier)
     elif use_generate_kb:

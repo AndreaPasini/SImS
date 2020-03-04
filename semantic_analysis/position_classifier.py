@@ -44,7 +44,7 @@ def checkClassifier(classifier):
         sys.exit(0)
 
 
-def validate_classifiers_grid_search():
+def validate_classifiers_grid_search(output_path):
     inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
@@ -52,13 +52,34 @@ def validate_classifiers_grid_search():
     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
     y = np.array(data_img["Position"])
 
+    dfAccuracy = pd.DataFrame()
+    cv = LeaveOneOut()
     classifiers = getClassifiersGridSearch()
-    print("Macro F1 scores for different classifiers:")
-    for name, clf, params in classifiers:
-        gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
-        gridSearch.fit(X, y)
-        print(f"- {name}: {gridSearch.best_score_:.3f}")
-        print(gridSearch.best_params_)
+    try:
+        for name, clf, params in classifiers:
+            print(name)
+            gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
+            gridSearch.fit(X, y)
+            print(f"- {name}, F1: {gridSearch.best_score_:.3f}")
+            print(gridSearch.best_params_)
+
+            # Get best classifier from grid search
+            best_clf = gridSearch.best_estimator
+            # Use leave-one out for printing its final evaluation
+            y_pred = cross_val_predict(best_clf, X, y, cv=cv)
+            dfAccuracy = getClassF1_df(y, y_pred, name, dfAccuracy)
+            getConfusionMatrix(y, y_pred, name, dfAccuracy.tail())
+
+        dfAccuracy.plot.bar()
+        dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
+        print(dfAccuracy.head().to_string())
+        resultFile = open(output_path, "w+")
+        resultFile.writelines('F1 Score\n\n')
+        resultFile.writelines(dfAccuracy.head().to_string())
+        resultFile.close()
+
+    except ValueError as e:
+        print(e)
 
 
 def validate_classifiers(output_path):
@@ -76,7 +97,7 @@ def validate_classifiers(output_path):
         for nameClf, clf in zip(names, classifiers):
             print(nameClf)
             y_pred = cross_val_predict(clf, X, y, cv=cv)
-            dfAccuracy = getAccuracy(y, y_pred, nameClf, dfAccuracy)
+            dfAccuracy = getClassF1_df(y, y_pred, nameClf, dfAccuracy)
             getConfusionMatrix(y, y_pred, nameClf, dfAccuracy.tail())
         dfAccuracy.plot.bar()
         dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
@@ -139,7 +160,7 @@ def build_final_model(fileModel, classifier):
     pickle.dump(model, open(fileModel, 'wb'))
 
 
-def getAccuracy(y, y_pred, nameClf, dfAccuracy):
+def getClassF1_df(y, y_pred, nameClf, dfAccuracy):
     precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
     column_names = np.unique(y)
     matrix_f1 = np.reshape(f1, (1, f1.size))

@@ -10,10 +10,9 @@ pyximport.install(language_level=3)
 
 from datetime import datetime
 from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
-    COCO_ann_train_dir, output_panoptic_json_path, output_panoptic_path
-from semantic_analysis.position_classifier import validate_classifiers, build_final_model, generate_kb, \
-    validate_classifiers_grid_search
-#from semantic_analysis.knowledge_base import generate_kb
+    COCO_ann_train_dir
+from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, generate_kb
+
 
 ### CONFIGURATION ###
 output_path = '../COCO/positionDataset/results/evaluation.txt'

@@ -27,14 +27,14 @@ Naive_Bayes = False
 #########################
 
 ###  CHOOSE FLOW ###
-use_validate_classifiers = False    # Run cross-validation for relative-position classifiers
+use_validate_classifiers = True    # Run cross-validation for relative-position classifiers
 use_build_final_model = False       # Build relative-position classifier, final model
-use_generate_kb = True              # Generate knowledge base: save graphs and histograms
+use_generate_kb = False              # Generate knowledge base: save graphs and histograms
 ####################
 
-###  CHOOSE SET OF IMAGES ###
-use_validation_image = False
-use_train_image = True
+###  CHOOSE SET OF IMAGES FOR BUILDING THE KNOWLEDGE BASE ###
+use_validation_image = False        # Build KB on COCO validation images (5,000)
+use_train_image = True              # Build KB on COCO training images (118,287)
 ####################
 
 

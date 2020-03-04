@@ -18,7 +18,7 @@ position_labels_csv_path = os.path.join(COCO_dir, 'positionDataset/training/Labe
 
 # Knowledge base
 kb_dir = os.path.join(COCO_dir, 'kb/')
-kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json')
+kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json')     # Contains the KB extracted from Validation Images (COCO)
 kb_clean_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKBclean.json')
 kb_freq_graphs_path = os.path.join(kb_dir, 'freqGraphs.json')
 position_dataset_dir = os.path.join(COCO_dir, 'positionDataset')

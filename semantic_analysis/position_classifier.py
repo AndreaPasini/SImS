@@ -343,7 +343,7 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
     results = []
 
     # Analyze all images
-    for img in files[:10]:
+    for img in files:
         if img.endswith('.png'):
             results.append(pool.apply_async(compute_graph_from_image, args=(img, annot_dict[img], id_dict[img], cat_dict, COCO_ann_dir, loaded_model),
                                             callback=update))
@@ -395,10 +395,9 @@ def compute_graph_from_image(image_name, segments_info, image_id, cat_info, anno
     # @return the image converted to graph
     #try:
 
-    print(segments_info)
-    # if segments_info:
-    #     print('Image has no segments.')
-    #     return None
+    if len(segments_info)==0:
+        print('Image has no segments.')
+        return None
 
     catInf = pd.DataFrame(cat_info).T
     segInfoDf = pd.DataFrame(segments_info)

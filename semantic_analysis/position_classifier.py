@@ -343,7 +343,7 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
     results = []
 
     # Analyze all images
-    for img in files:
+    for img in files[:10]:
         if img.endswith('.png'):
             results.append(pool.apply_async(compute_graph_from_image, args=(img, annot_dict[img], id_dict[img], cat_dict, COCO_ann_dir, loaded_model),
                                             callback=update))
@@ -353,14 +353,11 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
 
     # Collect Graph results
     resultGraph = []
-    resultHist = []
     for img in results:
         if img.get() is not None:
-            graph, hist = img.get()
+            graph = img.get()
             # Get graph description for this image
             resultGraph.append(nx_to_json(graph))
-            # Get position histograms for this image
-            resultHist.append(hist)
 
     # Write graphs to file
     with open(out_graphs_json_path, "w") as f:
@@ -396,30 +393,37 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
 def compute_graph_from_image(image_name, segments_info, image_id, cat_info, annot_folder, model):
     # Apply position classifier to this image
     # @return the image converted to graph
-    try:
-        catInf = pd.DataFrame(cat_info).T
-        segInfoDf = pd.DataFrame(segments_info)
-        merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                          join='inner').set_index('id')
+    #try:
 
-        result = merge['name'].sort_values()
-        img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-        strings = image2strings(img_ann)
-        object_ordering = result.index.tolist()
-        positions = compute_string_positions(strings, object_ordering)
-        g = nx.Graph()
-        g.name = image_id
-        for id, name in result.iteritems():
-            g.add_node(id, label=name)
-        for (s, r), pos in list(positions.items()):
-            featuresRow = get_features(img_ann, "", s, r, positions)
-            prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-            g.add_edge(s, r, pos=prediction)
-        return g
-    except Exception as e:
-        print('Caught exception in analyze_image:')
-        traceback.print_exc()
-        return None
+    print(segments_info)
+    # if segments_info:
+    #     print('Image has no segments.')
+    #     return None
+
+    catInf = pd.DataFrame(cat_info).T
+    segInfoDf = pd.DataFrame(segments_info)
+
+    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                      join='inner').set_index('id')
+
+    result = merge['name'].sort_values()
+    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+    strings = image2strings(img_ann)
+    object_ordering = result.index.tolist()
+    positions = compute_string_positions(strings, object_ordering)
+    g = nx.Graph()
+    g.name = image_id
+    for id, name in result.iteritems():
+        g.add_node(id, label=name)
+    for (s, r), pos in list(positions.items()):
+        featuresRow = get_features(img_ann, "", s, r, positions)
+        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+        g.add_edge(s, r, pos=prediction)
+    return g
+    # except Exception as e:
+    #     print('Image has no segments.')# Except: segInfoDf has no 'category_id'
+    #     #traceback.print_exc()
+    #     return None
 
 
 

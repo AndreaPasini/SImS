@@ -2,16 +2,17 @@ import json
 import os
 import seaborn as sns
 import matplotlib.pyplot as plt
-from config import val_panoptic_graphs, likelihoods_json_path, output_panoptic_json_path, output_panoptic_path, \
+from config import val_panoptic_graphs, likelihoods_json_path, output_panoptic_json_path, output_panoptic_dir, \
     position_classifier_path, COCO_val_json_path, \
     COCO_ann_val_dir, kb_pairwise_json_path, kb_clean_pairwise_json_path, likelihoods_path, \
     charts_anomalies_likelihoods_path, fp_chart, tp_chart, fp_tp_json_path
 from main_inspection import pq_inspection
-from semantic_analysis.position_classifier import generate_kb
+from semantic_analysis.position_classifier import create_kb_graphs
+
 
 ###  CHOOSE FLOW ###
-generate_val_panoptic_graphs = False
-compute_val_panoptic_likelihoods = True
+generate_val_panoptic_graphs = True         # Apply position classifier to images (segmented by CNN) and compute graphs
+compute_val_panoptic_likelihoods = False
 analyze_likelihoods = True
 ####################
 
@@ -19,8 +20,8 @@ analyze_likelihoods = True
 if __name__ == "__main__":
 
     if generate_val_panoptic_graphs:
-        COCO_json_path, COCO_ann_dir = output_panoptic_json_path, output_panoptic_path
-        generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir, True)
+        # Apply position classifier to images (segmented by CNN) and compute graphs
+        create_kb_graphs(position_classifier_path, output_panoptic_json_path, output_panoptic_dir, val_panoptic_graphs)
         print("Process 'generate_val_panoptic_graphs' Completed")
 
     if compute_val_panoptic_likelihoods:
@@ -46,7 +47,7 @@ if __name__ == "__main__":
             image_id = gt_ann['image_id']
             if image_id not in pred_annotations:
                 continue
-            fp_img = pq_inspection(gt_ann, pred_annotations[image_id], image_id, COCO_ann_val_dir, output_panoptic_path,
+            fp_img = pq_inspection(gt_ann, pred_annotations[image_id], image_id, COCO_ann_val_dir, output_panoptic_dir,
                                    categories)
             graph = val_graph[image_id]
             nodes = {}

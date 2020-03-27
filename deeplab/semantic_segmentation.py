@@ -1,6 +1,12 @@
 # Andrea Pasini
 # This file contains the class for running: Semantic segmentation model (DeeplabV2). Trained on COCO STUFF dataset.
 # https://github.com/kazuto1011/deeplab-pytorch
+# Download model from google drive with:
+# wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget
+#   --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies
+#   --no-check-certificate 'https://docs.google.com/uc?export=download&id=18kR928yl9Hz4xxuxnYgg7Hpi36hM8J2d'
+#   -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=18kR928yl9Hz4xxuxnYgg7Hpi36hM8J2d"
+#   -O deeplabv2_resnet101_msc-cocostuff164k-100000.pth && rm -rf /tmp/cookies.txt
 
 from __future__ import absolute_import, division, print_function
 
@@ -203,7 +209,7 @@ class Semantic_segmentation:
     def predict(self, image):
         """
         Inference from a single image.
-        :param image: must follow the format -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
+        :param image: must follow the format  (BGR) -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
         :return: 2D matrix with labels (panoptic COCO ids)
         """
 
@@ -219,7 +225,7 @@ class Semantic_segmentation:
     def predict_topk(self, image, k):
         """
         Inference from a single image.
-        :param image: must follow the format -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
+        :param image: must follow the format  (BGR) -> mx.image.imread(path + img_name).asnumpy().astype('uint8')[...,::-1]
         :return: res: list of 2D matrices with labels (panoptic COCO ids). Matrices represent the top-k classes for each pixel. Matrices are sorted by decreasing confidence.
         :return: probs: list of the average confidence of the pixels of each class
         """

@@ -11,7 +11,7 @@ COCO_panoptic_cat_list_path = './classes/panoptic.csv'
 
 
 # Position classifier
-position_dataset_res_dir = os.path.join(COCO_dir, 'positionDataset/results')
+position_dataset_res_dir = os.path.join(COCO_dir, 'positionDataset/results/')
 position_classifier_path = os.path.join(position_dataset_res_dir, 'final_model.clf')
 train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
 position_labels_csv_path = os.path.join(COCO_dir, 'positionDataset/training/LabelsList.csv')
@@ -21,11 +21,11 @@ kb_dir = os.path.join(COCO_dir, 'kb/')
 kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json')     # Contains the KB extracted from Validation Images (COCO)
 kb_clean_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKBclean.json')
 kb_freq_graphs_path = os.path.join(kb_dir, 'freqGraphs.json')
-position_dataset_dir = os.path.join(COCO_dir, 'positionDataset')
+position_dataset_dir = os.path.join(COCO_dir, 'positionDataset/')
 
 # Panoptic
 val_panoptic_graphs = os.path.join(position_dataset_res_dir, 'val_panoptic_graphs.json')
-output_panoptic_path = os.path.join(COCO_dir, 'output/panoptic')
+output_panoptic_dir = os.path.join(COCO_dir, 'output/panoptic/')
 output_panoptic_json_path = os.path.join(COCO_dir, 'output/panoptic/panoptic.json')
 cnn_nodes_links_json_path = os.path.join(position_dataset_res_dir, 'cnn_nodes_links.json')
 

@@ -1,4 +1,9 @@
-import traceback
+"""
+This file contains functions related to the relative position classifier:
+- validate_classifiers_grid_search() -> evaluate position classifiers
+- build_final_model() -> create final position classifier
+- create_kb_graphs() -> apply position classifier to obtain image graphs
+"""
 
 import matplotlib
 import numpy as np
@@ -10,97 +15,26 @@ from multiprocessing.pool import Pool
 from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
-import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
-from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from tqdm import tqdm
 
-from config import kb_dir, COCO_ann_val_dir, COCO_val_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
-    train_graphs_json_path, COCO_panoptic_cat_info_path, val_panoptic_graphs
+from config import position_dataset_res_dir
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import nx_to_json
-from scipy.stats import entropy
-from semantic_analysis.algorithms import image2strings, compute_string_positions, get_features
-
-
-
-def validate_classifiers_grid_search(output_path):
-    inizializePath(position_dataset_res_dir)
-    data = pd.read_csv(pathFeaturesBalanced, sep=';')
-    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
-
-    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
-    y = np.array(data_img["Position"])
-
-    dfAccuracy = pd.DataFrame()
-    cv = LeaveOneOut()
-    classifiers = getClassifiersGridSearch()
-    try:
-        for name, clf, params in classifiers:
-            print(name)
-            gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
-            gridSearch.fit(X, y)
-            print(f"- {name}, F1: {gridSearch.best_score_:.3f}")
-            print(gridSearch.best_params_)
-
-            # Get best classifier from grid search
-            best_clf = gridSearch.best_estimator_
-            # Use leave-one out for printing its final evaluation
-            y_pred = cross_val_predict(best_clf, X, y, cv=cv)
-            dfAccuracy = getClassF1_df(y, y_pred, name, dfAccuracy)
-            getConfusionMatrix(y, y_pred, name, dfAccuracy.tail())
-
-        dfAccuracy.plot.bar()
-        dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
-        print(dfAccuracy.head().to_string())
-        resultFile = open(output_path, "w+")
-        resultFile.writelines('F1 Score\n\n')
-        resultFile.writelines(dfAccuracy.head().to_string())
-        resultFile.close()
-
-    except ValueError as e:
-        print(e)
-
-
-# def validate_classifiers(output_path):
-#     inizializePath(position_dataset_res_dir)
-#     data = pd.read_csv(pathFeaturesBalanced, sep=';')
-#     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
-#
-#     X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
-#     y = np.array(data_img["Position"])
-#
-#     dfAccuracy = pd.DataFrame()
-#     cv = LeaveOneOut()
-#     names, classifiers = getClassifiers()
-#     try:
-#         for nameClf, clf in zip(names, classifiers):
-#             print(nameClf)
-#             y_pred = cross_val_predict(clf, X, y, cv=cv)
-#             dfAccuracy = getClassF1_df(y, y_pred, nameClf, dfAccuracy)
-#             getConfusionMatrix(y, y_pred, nameClf, dfAccuracy.tail())
-#         dfAccuracy.plot.bar()
-#         dfAccuracy['macro-average'] = dfAccuracy.mean(axis=1)
-#         print(dfAccuracy.head().to_string())
-#         resultFile = open(output_path, "w+")
-#         resultFile.writelines('F1 Score\n\n')
-#         resultFile.writelines(dfAccuracy.head().to_string())
-#         resultFile.close()
-#
-#     except ValueError as e:
-#         print(e)
+from semantic_analysis.feature_extraction import image2strings, compute_string_positions, get_features
 
 
 def getClassifiersGridSearch():
+    """ Return a list of classifiers and parameters for grid-search (validate_classifiers_grid_search) """
     param_knn = {'n_neighbors': [5, 10, 15]}
     param_svc = {'gamma': ['auto']}
     param_dtree = {'max_depth': [5, 10, 15, 20, 25, 30, 35]}
@@ -114,25 +48,108 @@ def getClassifiersGridSearch():
 
     return classifiers
 
+# Utilities for file management
+def removeFile(filePath):
+    if os.path.isfile(filePath):
+        os.remove(filePath)
+def inizializePath(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
 
-# def getClassifiers():
-#     names = ["Nearest Neighbors",
-#              "Linear SVM",
-#              "RBF SVM",
-#              "Decision Tree",
-#              "Random Forest",
-#              "Naive Bayes"]
-#     classifiers = [
-#         KNeighborsClassifier(5),
-#         SVC(kernel="linear", C=0.025),
-#         SVC(gamma='auto'),
-#         DecisionTreeClassifier(max_depth=10),
-#         RandomForestClassifier(max_depth=20, n_estimators=35, random_state=0),
-#         GaussianNB()]
-#     return names, classifiers
+def getClassF1_df(y, y_pred, nameClf, F1_df):
+    """
+    For the given results, return F1 scores, separately for each class.
+    Append the results on to given table (dfAccuracy)
+    :param y, y_pred: ground-truth and predictions
+    :param nameClf: name of the classifier used for predictions (for pretty-printing)
+    :param F1_df: table to which append the results
+    """
+    precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
+    column_names = np.unique(y)
+    matrix_f1 = np.reshape(f1, (1, f1.size))
+    df_f1 = pd.DataFrame(matrix_f1, columns=column_names, index=[nameClf])
+    F1_df = F1_df.append(df_f1)
+    return F1_df
+
+def save_confusion_matrix(y, y_pred, clf_name, f1_macro, output_file):
+    """
+    Print comfusion matrix for the given predictions.
+    Save results to file.
+    :param y, y_pred: ground-truth and predictions
+    :param clf_name: name of the classifier
+    :param f1_macro: macro average f1 of these results
+    :param output_file: output file (.eps)
+    """
+    column_names = np.unique(y)
+    conf_mat = confusion_matrix(y, y_pred, labels=column_names)
+    conf_mat_df = pd.DataFrame(conf_mat, index=column_names, columns=column_names)
+    fig, ax = plt.subplots(figsize=[12,10])
+
+    im, cbar = heatmap(conf_mat_df, column_names, column_names, ax=ax,
+                       cmap="YlGn", cbarlabel=".")
+    annotate_heatmap(im, valfmt="{x:.0f}")
+
+    fig.tight_layout()
+    plt.title("Confusion Matrix, " + clf_name + '\nmacro-average f1: {0:.3f}'.format(f1_macro))
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    print(conf_mat_df)
+    removeFile(output_file)
+    fig.set_size_inches(13, 10, forward=True)
+    plt.savefig(output_file)
 
 
-def build_final_model(fileModel, final_classifier):
+def validate_classifiers_grid_search(output_path):
+    """
+    Perform a grid-search to validate position classifiers.
+    For each classifier validates the best parameter configuration with Kfold 10.
+    Write confusion matrices and F1-scores for the best configuration, using leave-one-out
+    """
+
+    inizializePath(position_dataset_res_dir)
+    data = pd.read_csv(pathFeaturesBalanced, sep=';')
+    data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
+
+    X = np.array(data.drop(['image_id', 'Subject', 'Reference'], axis=1))
+    y = np.array(data_img["Position"])
+
+    F1_df = pd.DataFrame()  # F1 scores, separately for each class and classifier
+    cv = LeaveOneOut()
+    classifiers = getClassifiersGridSearch()
+    try:
+        for clf_name, clf, params in classifiers:
+            print(clf_name)
+            gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
+            gridSearch.fit(X, y)
+            print(f"- {clf_name}, F1: {gridSearch.best_score_:.3f}")
+            print(gridSearch.best_params_)
+
+            # Get best classifier from grid search
+            best_clf = gridSearch.best_estimator_
+            # Use leave-one out for printing its final evaluation
+            y_pred = cross_val_predict(best_clf, X, y, cv=cv)
+            F1_df = getClassF1_df(y, y_pred, clf_name, F1_df)
+
+            f1_macro = F1_df.tail().mean(axis=1).get(key=clf_name)
+            save_confusion_matrix(y, y_pred, clf_name, f1_macro, os.path.join(position_dataset_res_dir, clf_name + ".eps"))
+
+        # Save results to file:
+        F1_df['macro-average'] = F1_df.mean(axis=1)
+        print(F1_df.head().to_string())
+        resultFile = open(output_path, "w+")
+        resultFile.writelines('F1 Score\n\n')
+        resultFile.writelines(F1_df.head().to_string())
+        resultFile.close()
+
+    except ValueError as e:
+        print(e)
+
+def build_final_model(output_model_file, final_classifier):
+    """
+    Build the selected model (position classifier) on training data.
+    :param output_model_file: path to output model file (sklearn, pickle)
+    :param final_classifier: configured sklearn model to be trained
+    """
     inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
@@ -143,41 +160,112 @@ def build_final_model(fileModel, final_classifier):
     # Fit model
     final_classifier.fit(X, y)
     # Save model to disk
-    removeFile(fileModel)
-    pickle.dump(final_classifier, open(fileModel, 'wb'))
+    removeFile(output_model_file)
+    pickle.dump(final_classifier, open(output_model_file, 'wb'))
 
+def compute_graph_from_image(image_name, image_id, segments_info, cat_info, annot_folder, model):
+    """
+    Apply position classifier to this image.
+    In each relationships, the order of the pair subject-reference is chosen based on alphabetical order.
+    E.g. (ceiling, floor) instead of (floor, ceiling)
+    :param image_name: file name of the image
+    :param image_id: identifier of the image (number extracted from image name, without leading zeros)
+    :param segments_info: json with segment class information
+    :param cat_info: COCO category information
+    :param annot_folder: path to annotations
+    :param model: relative-position classifier
+    :return the image converted to graph
+    """
+    if len(segments_info)==0:
+        print('Image has no segments.')
+        return None
 
-def getClassF1_df(y, y_pred, nameClf, dfAccuracy):
-    precision, recall, f1, s = precision_recall_fscore_support(y, y_pred)
-    column_names = np.unique(y)
-    matrix_f1 = np.reshape(f1, (1, f1.size))
-    df_f1 = pd.DataFrame(matrix_f1, columns=column_names, index=[nameClf])
-    dfAccuracy = dfAccuracy.append(df_f1)
-    return dfAccuracy
+    catInf = pd.DataFrame(cat_info).T
+    segInfoDf = pd.DataFrame(segments_info)
 
+    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
+                      join='inner').set_index('id')
 
-def getConfusionMatrix(y, y_pred, nameClf, row):
-    column_names = np.unique(y)
-    conf_mat = confusion_matrix(y, y_pred, labels=column_names)
-    conf_mat_df = pd.DataFrame(conf_mat, index=column_names, columns=column_names)
-    fig, ax = plt.subplots()
+    result = merge['name'].sort_values()
+    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
+    strings = image2strings(img_ann)
+    object_ordering = result.index.tolist()
+    positions = compute_string_positions(strings, object_ordering)
+    g = nx.Graph()
+    g.name = image_id
+    for id, name in result.iteritems():
+        g.add_node(id, label=name)
+    for (s, r), pos in list(positions.items()):
+        featuresRow = get_features(img_ann, "", s, r, positions)
+        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
+        g.add_edge(s, r, pos=prediction)
+    return g
 
-    im, cbar = heatmap(conf_mat_df, column_names, column_names, ax=ax,
-                       cmap="YlGn", cbarlabel=".")
-    texts = annotate_heatmap(im, valfmt="{x:.0f}")
+def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_json_path):
+    """
+    Analyze annotations, by applying classifier
+    Generate image graphs, with descriptions
+    :param fileModel_path: path to relative position model
+    :param COCO_json_path: annotation file with classes for each segment (either CNN annotations or ground-truth)
+    :param COCO_ann_dir: folder with png annotations (either CNN annotations or ground-truth)
+    :param out_graphs_json_path: output json file with graphs
+    """
 
-    fig.tight_layout()
-    accuracy = row.mean(axis=1).get(key=nameClf)
-    plt.title("Confusion Matrix " + nameClf + '\nmacro-average f1: {0:.3f}'.format(accuracy))
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    print(conf_mat_df)
-    file = position_dataset_res_dir + "/" + nameClf + ".jpeg"
-    removeFile(file)
-    fig.set_size_inches(13, 10, forward=True)
-    plt.savefig(file)
-    # if os.path.isfile(pathImageDetailBalanced):
-    #    os.remove(pathImageDetailBalanced)
+    loaded_model = pickle.load(open(fileModel_path, 'rb'))
+
+    # Load annotations
+    with open(COCO_json_path, 'r') as f:
+        json_data = json.load(f)
+        annot_dict = {}
+        cat_dict = {}
+        id_dict = {}
+        for img_ann in json_data['annotations']:
+            annot_dict[img_ann['file_name']] = img_ann['segments_info']
+        for img_ann in json_data['annotations']:
+            id_dict[img_ann['file_name']] = img_ann['image_id']
+        # TODO: cancellare
+        # if cnnFlag:
+        #     with open(COCO_panoptic_cat_info_path, 'r') as f:
+        #         categories_list = json.load(f)
+        #     cat_dict = {el['id']: el for el in categories_list}
+        # else:
+        cat_dict = {img_ann['id'] : img_ann for img_ann in json_data['categories']}
+    # Get files to be analyzed
+    files = sorted(listdir(COCO_ann_dir))
+
+    # Init progress bar
+    pbar = tqdm(total=len(files))
+
+    def update(x):
+        pbar.update()
+
+    print("Number of images: %d" % len(files))
+    print("Scheduling tasks...")
+    pool = Pool(10)
+    results = []
+
+    # Analyze all images
+    for img in files:
+        if img.endswith('.png'):
+            results.append(pool.apply_async(compute_graph_from_image, args=(img, id_dict[img], annot_dict[img],
+                                            cat_dict, COCO_ann_dir, loaded_model), callback=update))
+    pool.close()
+    pool.join()
+    pbar.close()
+
+    # Collect Graph results
+    resultGraph = []
+    for img in results:
+        if img.get() is not None:
+            graph = img.get()
+            # Get graph description for this image
+            resultGraph.append(nx_to_json(graph))
+
+    # Write graphs to file
+    with open(out_graphs_json_path, "w") as f:
+        json.dump(resultGraph, f)
+
+    print("Done")
 
 
 def heatmap(data, row_labels, col_labels, ax=None,
@@ -300,132 +388,6 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
     return texts
 
 
-def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_json_path):
-    """
-    Analyze annotations, by applying classifier
-    Generate image graphs, with descriptions
-    :param fileModel_path: path to relative position model
-    :param COCO_json_path: annotation file with classes for each segment (either CNN annotations or ground-truth)
-    :param COCO_ann_dir: folder with png annotations (either CNN annotations or ground-truth)
-    :param out_graphs_json_path: output json file with graphs
-    """
-
-    loaded_model = pickle.load(open(fileModel_path, 'rb'))
-
-    # Load annotations
-    with open(COCO_json_path, 'r') as f:
-        json_data = json.load(f)
-        annot_dict = {}
-        cat_dict = {}
-        id_dict = {}
-        for img_ann in json_data['annotations']:
-            annot_dict[img_ann['file_name']] = img_ann['segments_info']
-        for img_ann in json_data['annotations']:
-            id_dict[img_ann['file_name']] = img_ann['image_id']
-        # if cnnFlag:
-        #     with open(COCO_panoptic_cat_info_path, 'r') as f:
-        #         categories_list = json.load(f)
-        #     cat_dict = {el['id']: el for el in categories_list}
-        # else:
-        cat_dict = {img_ann['id'] : img_ann for img_ann in json_data['categories']}
-    # Get files to be analyzed
-    files = sorted(listdir(COCO_ann_dir))
-
-    # Init progress bar
-    pbar = tqdm(total=len(files))
-
-    def update(x):
-        pbar.update()
-
-    print("Number of images: %d" % len(files))
-    print("Scheduling tasks...")
-    pool = Pool(10)
-    results = []
-
-    # Analyze all images
-    for img in files:
-        if img.endswith('.png'):
-            results.append(pool.apply_async(compute_graph_from_image, args=(img, annot_dict[img], id_dict[img], cat_dict, COCO_ann_dir, loaded_model),
-                                            callback=update))
-    pool.close()
-    pool.join()
-    pbar.close()
-
-    # Collect Graph results
-    resultGraph = []
-    for img in results:
-        if img.get() is not None:
-            graph = img.get()
-            # Get graph description for this image
-            resultGraph.append(nx_to_json(graph))
-
-    # Write graphs to file
-    with open(out_graphs_json_path, "w") as f:
-        json.dump(resultGraph, f)
-
-    print("Done")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def compute_graph_from_image(image_name, segments_info, image_id, cat_info, annot_folder, model):
-    # Apply position classifier to this image
-    # @return the image converted to graph
-    #try:
-
-    if len(segments_info)==0:
-        print('Image has no segments.')
-        return None
-
-    catInf = pd.DataFrame(cat_info).T
-    segInfoDf = pd.DataFrame(segments_info)
-
-    merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-                      join='inner').set_index('id')
-
-    result = merge['name'].sort_values()
-    img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-    strings = image2strings(img_ann)
-    object_ordering = result.index.tolist()
-    positions = compute_string_positions(strings, object_ordering)
-    g = nx.Graph()
-    g.name = image_id
-    for id, name in result.iteritems():
-        g.add_node(id, label=name)
-    for (s, r), pos in list(positions.items()):
-        featuresRow = get_features(img_ann, "", s, r, positions)
-        prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-        g.add_edge(s, r, pos=prediction)
-    return g
-    # except Exception as e:
-    #     print('Image has no segments.')# Except: segInfoDf has no 'category_id'
-    #     #traceback.print_exc()
-    #     return None
-
-
-
 # def analyze_image(image_name, segments_info, image_id, cat_info, annot_folder, model, cnnFlag):
 #     try:
 #         catInf = pd.DataFrame(cat_info).T
@@ -460,71 +422,3 @@ def compute_graph_from_image(image_name, segments_info, image_id, cat_info, anno
 #         print('Caught exception in analyze_image:')
 #         traceback.print_exc()
 #         return None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def create_histograms(json_file, annot_folder, model):
-
-        histograms = {}
-
-        # Add up all histogram statistics
-        for pair, hist in [(k, v) for img in resultHist for (k, v) in img.items()]:
-            if pair not in histograms:
-                # add histogram as it is if pair is not existing
-                histograms[pair] = hist
-            else:
-                total_hist = histograms[pair]
-                # update histograms if pair already existing
-                for key in hist:
-                    if key in total_hist:
-                        total_hist[key] += hist[key]
-                    else:
-                        total_hist[key] = hist[key]
-
-        for hist in histograms.values():
-            sup = sum(hist.values())  # support: sum of all occurrences in the histogram
-            ent = []
-            for pos, count in hist.items():
-                perc = count / sup
-                hist[pos] = perc
-                ent.append(perc)
-            hist['sup'] = sup
-            hist['entropy'] = entropy(ent, base=2)
-
-
-
-        if not os.path.isdir(kb_dir):
-            os.makedirs(kb_dir)
-        with open(kb_pairwise_json_path, "w") as f:
-            json.dump({str(k): v for k, v in histograms.items()}, f)
-
-
-
-
-def removeFile(filePath):
-    if os.path.isfile(filePath):
-        os.remove(filePath)
-
-
-def inizializePath(path):
-    if not os.path.exists(path):
-        os.mkdir(path)

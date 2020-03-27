@@ -4,18 +4,17 @@
 
 """
 import pyximport
+import os
 from sklearn.ensemble import RandomForestClassifier
 
 pyximport.install(language_level=3)
 
 from datetime import datetime
 from config import position_classifier_path, COCO_val_json_path, COCO_ann_val_dir, COCO_train_json_path, \
-    COCO_ann_train_dir, train_graphs_json_path
+    COCO_ann_train_dir, train_graphs_json_path, kb_pairwise_json_path, position_dataset_res_dir
 from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, create_kb_graphs
+from semantic_analysis.knowledge_base import create_kb_histograms
 
-
-### CONFIGURATION ###
-output_path = '../COCO/positionDataset/results/evaluation.txt'
 ######################
 
 ### CHOOSE CLASSIFIER ###
@@ -44,7 +43,7 @@ if __name__ == "__main__":
     start_time = datetime.now()
 
     if use_validate_classifiers:
-        validate_classifiers_grid_search(output_path)
+        validate_classifiers_grid_search(os.path.join(position_dataset_res_dir, 'evaluation.txt'))
     elif use_build_final_model:
         build_final_model(position_classifier_path, final_classifier)
     elif use_generate_kb:
@@ -54,7 +53,8 @@ if __name__ == "__main__":
             COCO_json_path, COCO_ann_dir = COCO_train_json_path, COCO_ann_train_dir
         # Apply position classifier to images and compute graphs
         create_kb_graphs(position_classifier_path, COCO_json_path, COCO_ann_dir, train_graphs_json_path)
-        #generate_kb(position_classifier_path, COCO_json_path, COCO_ann_dir)
+        # Generate kb histograms from graphs
+        create_kb_histograms(train_graphs_json_path, kb_pairwise_json_path)
 
     end_time = datetime.now()
     print("Done.")

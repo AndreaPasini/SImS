@@ -1,3 +1,7 @@
+"""
+This file contains functions related to image processing for relative position computation
+"""
+
 from itertools import groupby
 import numpy as np
 

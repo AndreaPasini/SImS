@@ -1,8 +1,8 @@
 import numpy as np
 from PIL import Image
-import pyximport
-pyximport.install(language_level=3)
-
+import os
+import cv2
+from config import COCO_img_train_dir, position_dataset_dir
 
 def getImage(image_name, img_ann, rand):
     """
@@ -17,26 +17,31 @@ def getImage(image_name, img_ann, rand):
     rgbReference = [254, 204, 92]
     rgbSubject = [8, 81, 156]
 
-    img = Image.open('../COCO/images/train2017' + '/' + image_name[:-3] + 'jpg').convert('L')   #TODO: '../COCO/images/train2017' lo passerei come parametro di getImage
+    img = Image.open(os.path.join(COCO_img_train_dir, image_name[:-3] + 'jpg')).convert('L')
 
     stacked_img = np.stack((np.array(img),) * 3, axis=-1)
-    mask = getMask(img_ann, subject)
-    stacked_img[mask == True] = rgbSubject
-    mask = getMask(img_ann, reference)
-    stacked_img[mask == True] = rgbReference
+    stacked_img[img_ann==subject] = rgbSubject
+    stacked_img[img_ann==reference] = rgbReference
 
     image = Image.fromarray(stacked_img, 'RGB')
-    image.save('../COCO/positionDataset/training/' + image_name, 'PNG')         #TODO: '../COCO/positionDataset/training/' lo passerei come parametro di getImage
+    image.save(os.path.join(position_dataset_dir, 'training', image_name), 'PNG')
 
+def mask_baricenter(mask):
+    """
+    Given a 2D boolean mask, return x,y coordinates of its baricenter
+    """
+    binary = np.zeros(mask.shape, dtype=np.uint8)
+    binary[mask]=255
+    m = cv2.moments(binary)
+    if m["m00"]>0:
+        x = int(m["m10"] / m["m00"])
+        y = int(m["m01"] / m["m00"])
+        return x, y
+    else: return None, None
 
-
-def getMask(img_ann, object):
-    mask = np.ma.mask_rowcols(img_ann == object, img_ann)
-    return mask
-
-
-def getImageName(imageId, pathFile):
+def getImageName(imageId, pathFile, extension="png"):
+    """ Return image file name, given COCO Id and path."""
     imageid = int(imageId)
-    imageName = f"{imageid:012d}.png"
-    image = pathFile + "/" + imageName
+    imageName = f"{imageid:012d}.{extension}"
+    image = os.path.join(pathFile, imageName)
     return image

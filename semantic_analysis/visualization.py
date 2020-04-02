@@ -1,0 +1,139 @@
+from image_analysis.ImageProcessing import mask_baricenter
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
+import cv2
+import seaborn as sns
+import numpy as np
+import pyximport
+pyximport.install(language_level=3)
+from semantic_analysis.feature_extraction import extract_bbox_from_mask
+
+
+
+class RelationshipVisualizer:
+    """ Class for printing object relationships """
+
+    __MIN_AGGREGATION_DIST = 40     # Minimum distance (pixel) for aggregating relationship end-points
+    __OBJECT_ALPHA_COLOR = 0.8      # Opacity (0=transparent) of object patches drawn on the image
+
+    def __init__(self, img_annotation, rgb_image, ax):
+        """
+        Constructor
+        :param img_annotation: COCO png annotation, read with load_png_annotation()
+        :param rgb_image: RGB image associated to the annotation
+        :param ax: axes object where the output will be printed
+        """
+        self.__object_centers = {}
+        self.__img_annotation = img_annotation
+        self.__output_image = self.__preprocess_bgr_image(rgb_image)
+        self.__ax = ax
+
+    def __preprocess_bgr_image(self, rgb_image):
+        # Preprocess bgr image for better visualization
+        img_print = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
+        v = img_print[:, :, 2]
+        increase = 50
+        img_print[:, :, 2] = 0.3 * 255 + 0.7 * np.where(v <= 255 - increase, v + increase, 255)
+        img_print[:, :, 1] = 0.3 * img_print[:, :, 1]
+        return cv2.cvtColor(img_print, cv2.COLOR_HSV2RGB)
+
+    def __random_color(self):
+        pal = sns.color_palette("Set3")
+        index = np.random.randint(0, len(pal))
+        return 255*np.array(pal[index])*0.8 + 0.2 * np.random.choice(range(256), size=3)
+
+    def __aggregate_endpoints(self, obj_id, computed_x, computed_y):
+        if obj_id in self.__object_centers:     # if already have an endpoint on this object
+            # Find a close endpoint for obj_id
+            for c in self.__object_centers[obj_id]:
+                if np.sqrt((c[0] - computed_x) ** 2 + (c[1] - computed_y) ** 2) < self.__MIN_AGGREGATION_DIST:
+                    return c[0], c[1]
+        # Close endpoint not found. Add a new one
+        self.__object_centers[obj_id].append((computed_x, computed_y))
+        return computed_x, computed_y
+
+    def draw_relationship(self, pos, sub, ref, mode=1):
+        """
+        Draw to the image a single relationship.
+        :param pos: position relationship (e.g. "above")
+        :param sub: subject id
+        :param ref: reference id
+        :param mode: 1 (optimized segment positioning), 2 (base relationhip-line positioning)
+        """
+        colors = {'side-up': 'black', 'side-down': 'black', 'side': 'black'}
+
+        # Get subject and reference masks
+        sub_mask = self.__img_annotation == sub
+        ref_mask = self.__img_annotation == ref
+
+        # Draw object masks (transparent patch) if not present
+        if sub not in self.__object_centers:
+            rand_color = self.__OBJECT_ALPHA_COLOR*self.__random_color()
+            self.__output_image[sub_mask] = np.floor(self.__output_image[sub_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
+            self.__object_centers[sub] = []
+        if ref not in self.__object_centers:
+            rand_color = self.__OBJECT_ALPHA_COLOR*self.__random_color()
+            self.__output_image[ref_mask] = np.floor(self.__output_image[ref_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
+            self.__object_centers[ref] = []
+
+        # Find subject and reference positions
+        _, sub_left, _, sub_right = extract_bbox_from_mask(sub_mask)
+        _, ref_left, _, ref_right = extract_bbox_from_mask(ref_mask)
+        # Get sub and ref baricenters (first attempt for relationship endpoints)
+        x_sub, y_sub = mask_baricenter(sub_mask)
+        x_ref, y_ref = mask_baricenter(ref_mask)
+
+        # Update endopoints for better visualization (try to use vertical lines)
+        if mode == 1:
+            # Middle position at the horizontal intersection of sub and ref
+            x_middle = int((min(sub_right, ref_right) + max(sub_left, ref_left)) / 2)
+            if pos in ['above', 'on', 'below', 'hanging']:
+                if self.__img_annotation[y_sub, x_middle] == sub:  # if this is a point of subject (might not be)
+                    x_sub = x_middle   # Update x value with middle position
+                if self.__img_annotation[y_ref, x_middle] == ref:
+                    x_ref = x_middle
+
+            # Update endpoint positions (aggregate endpoints with previous relationships to avoid cluttering)
+            x_sub, y_sub = self.__aggregate_endpoints(sub, x_sub, y_sub)
+            x_ref, y_ref = self.__aggregate_endpoints(ref, x_ref, y_ref)
+
+        # Draw line relationships
+        if pos in colors:
+            self.__ax.add_line(mlines.Line2D([x_sub, x_ref], [y_sub, y_ref], color=colors[pos], label=pos))
+        else:
+            self.__ax.add_line(mlines.Line2D([x_sub, x_ref], [y_sub, y_ref]))
+        # Draw endpoints
+        self.__ax.add_patch(mpatches.Circle((x_sub, y_sub), color='white'))
+        self.__ax.add_patch(mpatches.Circle((x_ref, y_ref), color='white'))
+        self.__ax.add_patch(mpatches.Circle((x_sub, y_sub), radius=10, color='black', fill=False))
+        self.__ax.add_patch(mpatches.Circle((x_ref, y_ref), radius=10, color='black', fill=False))
+
+    def get_output_image(self):
+        """
+        :return: RGB output image, with object patches
+        """
+        return self.__output_image
+
+    def draw_positive_relationships(self, graph, kb, thr):
+        """
+        Draw on axes: the image with object patches and the set of relationships
+        :param graph: graph of this image, with object positions (read from json)
+        :param kb: knowledge base (read from json)
+        :param thr: confidence threshold for a relationship to be printed
+        """
+        nodes = {}
+        for node in graph['nodes']:
+            nodes[node['id']] = node['label']
+        # Print links
+        for link in graph['links']:
+            sub = nodes[link['s']]
+            ref = nodes[link['r']]
+            pos = link['pos']
+            pair = f"{sub},{ref}"
+            if pair in kb:
+                hist = kb[f"{sub},{ref}"]
+                pal = sns.color_palette("Set3")
+                if hist[pos] > thr: # Threshold for printing a link
+                    self.draw_relationship(pos, link['s'], link['r'], mode=1)
+        self.__ax.imshow(self.get_output_image())
+

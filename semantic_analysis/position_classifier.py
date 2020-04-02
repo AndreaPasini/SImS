@@ -23,7 +23,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from tqdm import tqdm
 
-from config import position_dataset_res_dir
+from config import position_dataset_res_dir, COCO_panoptic_cat_info_path
 from main_dataset_labeling import pathGroundTruthBalanced, pathFeaturesBalanced
 from panopticapi.utils import load_png_annotation
 
@@ -217,19 +217,20 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
     with open(COCO_json_path, 'r') as f:
         json_data = json.load(f)
         annot_dict = {}
-        cat_dict = {}
         id_dict = {}
         for img_ann in json_data['annotations']:
             annot_dict[img_ann['file_name']] = img_ann['segments_info']
         for img_ann in json_data['annotations']:
             id_dict[img_ann['file_name']] = img_ann['image_id']
-        # TODO: cancellare
-        # if cnnFlag:
-        #     with open(COCO_panoptic_cat_info_path, 'r') as f:
-        #         categories_list = json.load(f)
-        #     cat_dict = {el['id']: el for el in categories_list}
-        # else:
-        cat_dict = {img_ann['id'] : img_ann for img_ann in json_data['categories']}
+
+        if 'categories' in json_data:
+            cat_dict = {cat_info['id']: cat_info for cat_info in json_data['categories']}
+        else:
+            with open(COCO_panoptic_cat_info_path, 'r') as f:
+                categories_list = json.load(f)
+            cat_dict = {el['id']: el for el in categories_list}
+
+
     # Get files to be analyzed
     files = sorted(listdir(COCO_ann_dir))
 
@@ -255,16 +256,15 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
 
     # Collect Graph results
     resultGraph = []
-    for img in results:
-        if img.get() is not None:
-            graph = img.get()
+    for graph_getter in results:
+        graph = graph_getter.get()
+        if graph is not None:
             # Get graph description for this image
             resultGraph.append(nx_to_json(graph))
 
     # Write graphs to file
     with open(out_graphs_json_path, "w") as f:
         json.dump(resultGraph, f)
-
     print("Done")
 
 

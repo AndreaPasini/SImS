@@ -30,7 +30,7 @@ from panopticapi.utils import IdGenerator, id2rgb, load_panoptic_category_info
 output_segmentation_path = '../COCO/output/segmentation'
 output_detection_path =  '../COCO/output/detection'
 output_detection_matterport_path = '../COCO/output/detection_matterport'
-output_panoptic_path = '../COCO/output/panoptic'
+output_panoptic_dir = '../COCO/output/panoptic'
 ### CONFIGURATION ###
 
 def build_panoptic_area(img_id, output_path, detection_path, segmentation_path):
@@ -271,7 +271,7 @@ def run_tasks(num_processes, input_path, detection_path, segmentation_path):
     pool = Pool(num_processes)
     results = []
     for file in files:
-        results.append(pool.apply_async(build_panoptic, args=(file.split('.')[0], output_panoptic_path, detection_path, segmentation_path), callback=update))
+        results.append(pool.apply_async(build_panoptic, args=(file.split('.')[0], output_panoptic_dir, detection_path, segmentation_path), callback=update))
     pool.close()
     pool.join()
     pbar.close()
@@ -279,7 +279,7 @@ def run_tasks(num_processes, input_path, detection_path, segmentation_path):
     for res in results:
         ann_list.append(res.get())
     panoptic_json['annotations'] = ann_list
-    with open(output_panoptic_path + "/panoptic.json", 'w') as f:
+    with open(output_panoptic_dir + "panoptic.json", 'w') as f:
         json.dump(panoptic_json, f)
     print("Done")
 
@@ -303,4 +303,4 @@ if __name__ == "__main__":
     print('Duration: ' + str(end_time - start_time))
 
     #Run evaluation (Panoptic Quality: PQ)
-    pq_compute_pr('../COCO/annotations/panoptic_val2017.json', output_panoptic_path + "/panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_path)
+    pq_compute_pr('../COCO/annotations/panoptic_val2017.json', output_panoptic_dir + "panoptic.json", '../COCO/annotations/panoptic_val2017', output_panoptic_dir)

@@ -22,16 +22,21 @@ def compute_hist_from_graph(graph):
     for l in graph['links']:
         s = node_labels[l['s']]
         r = node_labels[l['r']]
+        pair = f"{s},{r}"
         pos = l['pos']
-        if (s,r) in hist:
-            h_sr = hist[s, r]
+        #if (s,r) in hist:
+        if pair in hist:
+            #h_sr = hist[s, r]
+            h_sr = hist[pair]
             if pos in h_sr:
                 h_sr[pos]+=1
             else:
                 h_sr[pos]=1
         else:
-            hist[s, r] = {}
-            hist[s, r][pos]=1
+            #hist[s, r] = {}
+            #hist[s, r][pos]=1
+            hist[pair] = {}
+            hist[pair][pos]=1
     return hist
 
 def create_kb_histograms(graphs_json_path, out_json_path):

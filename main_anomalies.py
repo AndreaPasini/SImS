@@ -2,7 +2,7 @@ import json
 import os
 import seaborn as sns
 import matplotlib.pyplot as plt
-from config import val_panoptic_graphs, likelihoods_json_path, output_panoptic_json_path, output_panoptic_dir, \
+from config import val_panoptic_graphs, likelihoods_json_path, out_panoptic_json_path, out_panoptic_dir, \
     position_classifier_path, COCO_val_json_path, \
     COCO_ann_val_dir, kb_pairwise_json_path, kb_clean_pairwise_json_path, likelihoods_path, \
     charts_anomalies_likelihoods_path, fp_chart, tp_chart, fp_tp_json_path
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     if generate_val_panoptic_graphs:
         # Apply position classifier to images (segmented by CNN) and compute graphs
-        create_kb_graphs(position_classifier_path, output_panoptic_json_path, output_panoptic_dir, val_panoptic_graphs)
+        create_kb_graphs(position_classifier_path, out_panoptic_json_path, out_panoptic_dir, val_panoptic_graphs)
         print("Process 'generate_val_panoptic_graphs' Completed")
 
     if compute_val_panoptic_likelihoods:
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             gt_json = json.load(f)
         categories = {el['id']: el for el in gt_json['categories']}
 
-        with open(output_panoptic_json_path, 'r') as f:
+        with open(out_panoptic_json_path, 'r') as f:
             pred_json = json.load(f)
 
         pred_annotations = {el['image_id']: el for el in pred_json['annotations']}
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             image_id = gt_ann['image_id']
             if image_id not in pred_annotations:
                 continue
-            fp_img = pq_inspection(gt_ann, pred_annotations[image_id], image_id, COCO_ann_val_dir, output_panoptic_dir,
+            fp_img = pq_inspection(gt_ann, pred_annotations[image_id], image_id, COCO_ann_val_dir, out_panoptic_dir,
                                    categories)
             graph = val_graph[image_id]
             nodes = {}

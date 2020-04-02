@@ -52,10 +52,10 @@ if __name__ == "__main__":
     sup = [pro['sup'] for pro in json_data.values()]
     ent = [pro['entropy'] for pro in json_data.values()]
 
-    cleanKB = {k: v for k, v in json_data.items() if v['entropy'] <= 1 and v['sup'] > 50}
+    #cleanKB = {k: v for k, v in json_data.items() if v['entropy'] <= 1 and v['sup'] > 50}
 
-    with open(kb_clean_pairwise_json_path, "w") as f:
-        json.dump({k: v for k, v in cleanKB.items()}, f)
+    #with open(kb_clean_pairwise_json_path, "w") as f:
+    #    json.dump({k: v for k, v in cleanKB.items()}, f)
 
     # cleanKB= [k[v] for k,v in json_data.items() if v['entropy']<=1.5 and v['entropy']>1.3 and v['sup']>50]
 
@@ -83,9 +83,9 @@ if __name__ == "__main__":
 
     sup = np.array(sup)
     ent = np.array(ent)
-    mask = (ent <= 1) & (sup >= 50)
-    sup = sup[mask]
-    ent = ent[mask]
+    #mask = (ent <= 1) & (sup >= 50)
+    #sup = sup[mask]
+    #ent = ent[mask]
 
     plt.figure(figsize=(10, 6))
     y = np.sort(sup)
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(10, 6))
     y = np.sort(sup)
-    plt.plot(np.arange(len(y)), y, c='red', linestyle='', marker='o', markersize=2, markerfacecoloralt='tab:red')
+    plt.plot(np.arange(len(y[:])), y[:], c='red', linestyle='', marker='o', markersize=2, markerfacecoloralt='tab:red')
     plt.xlabel("data")
     plt.ylabel("sup")
     plt.grid()

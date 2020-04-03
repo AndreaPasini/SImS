@@ -18,7 +18,10 @@ def inspect_anomalies(image_graph, kb, pq_stat, anomaly_stat, no_istogram):
         l = None
         if pair in kb:
             hist = kb[f"{sub},{ref}"]
-            l = hist[pos]
+            if pos in hist:
+                l = hist[pos]
+            else:
+                l = 0
 
         # Look for the different options
         if link['s'] in pq_stat['fp'] and link['r'] in pq_stat['fp']:

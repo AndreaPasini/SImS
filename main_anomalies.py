@@ -48,9 +48,7 @@ if __name__ == "__main__":
             pred_json = json.load(f)
         # Load graphs (predictions)
         with open(out_panoptic_val_graphs_json_path, 'r') as f:
-            panoptic_graphs = json.load(f)
-
-        print(len(panoptic_graphs))
+            panoptic_graphs_json = json.load(f)
 
         # Dictionary to analyze the different configurations
         # both_fp : pairs of objects that are both false positives
@@ -69,7 +67,7 @@ if __name__ == "__main__":
 
         categories = {el['id']: el for el in gt_json['categories']}
         pred_annotations = {el['image_id']: el for el in pred_json['annotations']}
-
+        panoptic_graphs = {g['graph']['name']:g for g in panoptic_graphs_json}
         print("Analyzing predictions...")
         pbar = tqdm(total=len(gt_json['annotations']))
 

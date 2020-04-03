@@ -13,30 +13,30 @@ def inspect_anomalies(image_graph, kb, pq_stat, anomaly_stat, no_istogram):
         ref = nodes[link['r']]
         pos = link['pos']
         pair = f"{sub},{ref}"
-        selected_opt = None
-        # Check for the likelihood in the KB
-        l = None
-        if pair in kb:
-            hist = kb[f"{sub},{ref}"]
-            l = hist[pos]
-
-        # Look for the different options
-        if link['s'] in pq_stat['fp'] and link['r'] in pq_stat['fp']:
-            selected_opt = 'both_fp'
-        elif (link['s'] in pq_stat['tp'] and link['r'] in pq_stat['fp']) \
-                or (link['r'] in pq_stat['tp'] and link['s'] in pq_stat['fp']):
-            selected_opt = 'tp_fp'
-        elif link['s'] in pq_stat['fp'] or link['r'] in pq_stat['fp']:
-            selected_opt = 'fp_ignored'
-        else:
-            selected_opt = 'ignored'
-
-        if l is not None:
-            anomaly_stat[selected_opt]['l'].append(l)
-            anomaly_stat[selected_opt]['sup'].append(hist['sup'])
-            anomaly_stat[selected_opt]['entropy'].append(hist['entropy'])
-        else:
-            no_istogram[selected_opt]+=1
+        # selected_opt = None
+        # # Check for the likelihood in the KB
+        # l = None
+        # if pair in kb:
+        #     hist = kb[f"{sub},{ref}"]
+        #     l = hist[pos]
+        #
+        # # Look for the different options
+        # if link['s'] in pq_stat['fp'] and link['r'] in pq_stat['fp']:
+        #     selected_opt = 'both_fp'
+        # elif (link['s'] in pq_stat['tp'] and link['r'] in pq_stat['fp']) \
+        #         or (link['r'] in pq_stat['tp'] and link['s'] in pq_stat['fp']):
+        #     selected_opt = 'tp_fp'
+        # elif link['s'] in pq_stat['fp'] or link['r'] in pq_stat['fp']:
+        #     selected_opt = 'fp_ignored'
+        # else:
+        #     selected_opt = 'ignored'
+        #
+        # if l is not None:
+        #     anomaly_stat[selected_opt]['l'].append(l)
+        #     anomaly_stat[selected_opt]['sup'].append(hist['sup'])
+        #     anomaly_stat[selected_opt]['entropy'].append(hist['entropy'])
+        # else:
+        #     no_istogram[selected_opt]+=1
 
 
         #item = {(sub, ref): value for key, value in kb_pairwise.items() if sub in key and ref in key}

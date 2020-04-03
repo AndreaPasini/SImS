@@ -11,7 +11,7 @@ from config import likelihoods_json_path, out_panoptic_json_path, out_panoptic_d
     anomaly_statistics_json_path
 from main_inspection import pq_inspection
 import pyximport
-import tqdm
+from tqdm import tqdm
 from panopticapi.utils import rgb2id
 from semantic_analysis.anomaly_detection import inspect_anomalies
 

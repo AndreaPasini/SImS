@@ -11,7 +11,7 @@ from config import likelihoods_json_path, out_panoptic_json_path, out_panoptic_d
     anomaly_statistics_json_path
 from main_inspection import pq_inspection
 import pyximport
-
+import tqdm
 from panopticapi.utils import rgb2id
 from semantic_analysis.anomaly_detection import inspect_anomalies
 
@@ -68,6 +68,9 @@ if __name__ == "__main__":
         categories = {el['id']: el for el in gt_json['categories']}
         pred_annotations = {el['image_id']: el for el in pred_json['annotations']}
 
+        print("Analyzing predictions...")
+        pbar = tqdm(total=len(gt_json['annotations']))
+
         # For each image in ground truth annotations
         for gt_ann in gt_json['annotations']:
             image_id = gt_ann['image_id']
@@ -86,6 +89,10 @@ if __name__ == "__main__":
             pq_stat = pq_inspection(gt_ann, pred_ann, gt_map, pred_map)
             # Analyze image graph and compare with knowledge base. Fill anomaly_stat
             inspect_anomalies(panoptic_graphs[image_id], kb_filtered, pq_stat, anomaly_stat, no_histogram)
+
+            pbar.update()
+
+        pbar.close()
 
         if not os.path.isdir(anomaly_detection_dir):
             os.makedirs(anomaly_detection_dir)

@@ -26,6 +26,8 @@ def inspect_anomalies(image_graph, kb, pq_stat, anomaly_stat, no_istogram):
         # Look for the different options
         if link['s'] in pq_stat['fp'] and link['r'] in pq_stat['fp']:
             selected_opt = 'both_fp'
+        elif link['s'] in pq_stat['tp'] and link['r'] in pq_stat['tp']:
+            selected_opt = 'both_tp'
         elif (link['s'] in pq_stat['tp'] and link['r'] in pq_stat['fp']) \
                 or (link['r'] in pq_stat['tp'] and link['s'] in pq_stat['fp']):
             selected_opt = 'tp_fp'

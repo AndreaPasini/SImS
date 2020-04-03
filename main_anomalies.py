@@ -88,7 +88,7 @@ if __name__ == "__main__":
             # Find TP, FP, FN according to panoptic quality
             pq_stat = pq_inspection(gt_ann, pred_ann, gt_map, pred_map)
             # Analyze image graph and compare with knowledge base. Fill anomaly_stat
-            inspect_anomalies(panoptic_graphs[image_id], kb_filtered, pq_stat, anomaly_stat, no_histogram)
+            #inspect_anomalies(panoptic_graphs[image_id], kb_filtered, pq_stat, anomaly_stat, no_histogram)
 
             pbar.update()
 

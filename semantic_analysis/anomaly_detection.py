@@ -5,14 +5,14 @@
 def inspect_anomalies(image_graph, kb, pq_stat, anomaly_stat, no_istogram):
 
     nodes = {}
-    for node in image_graph['nodes']:
-        nodes[node['id']] = node['label']
-    # Run for each link in the graph
-    for link in image_graph['links']:
-        sub = nodes[link['s']]
-        ref = nodes[link['r']]
-        pos = link['pos']
-        pair = f"{sub},{ref}"
+    # for node in image_graph['nodes']:
+    #     nodes[node['id']] = node['label']
+    # # Run for each link in the graph
+    # for link in image_graph['links']:
+    #     sub = nodes[link['s']]
+    #     ref = nodes[link['r']]
+    #     pos = link['pos']
+    #     pair = f"{sub},{ref}"
         # selected_opt = None
         # # Check for the likelihood in the KB
         # l = None

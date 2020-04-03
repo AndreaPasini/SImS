@@ -34,12 +34,12 @@ kb_clean_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKBclean.json')
 kb_freq_graphs_path = os.path.join(kb_dir, 'freqGraphs.json')
 
 
-
-
 # Anomalies
-likelihoods_path = os.path.join(COCO_dir, 'anomalies/')
-charts_anomalies_likelihoods_path = os.path.join(likelihoods_path, 'charts/')
+anomaly_detection_dir = os.path.join(COCO_dir, 'anomalies/')
+anomaly_statistics_json_path = os.path.join(anomaly_detection_dir, 'pq_statistics.json')
+
+charts_anomalies_likelihoods_path = os.path.join(anomaly_detection_dir, 'charts/')
 fp_chart = os.path.join(charts_anomalies_likelihoods_path, 'fp_chart.png')
 tp_chart = os.path.join(charts_anomalies_likelihoods_path, 'tp_chart.png')
-likelihoods_json_path = os.path.join(likelihoods_path, 'val_panoptic_likelihoods.json')
-fp_tp_json_path = os.path.join(likelihoods_path, 'fp_tp_likelihoods.json')
+likelihoods_json_path = os.path.join(anomaly_detection_dir, 'val_panoptic_likelihoods.json')
+fp_tp_json_path = os.path.join(anomaly_detection_dir, 'fp_tp_likelihoods.json')

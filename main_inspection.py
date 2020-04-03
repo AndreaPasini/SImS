@@ -101,93 +101,121 @@ def find_fp(gt_json_file, pred_json_file, gt_folder=None, pred_folder=None):
     t_delta = time.time() - start_time
     print("Time elapsed: {:0.2f} seconds".format(t_delta))
 
-def pq_inspection(gt_ann, pred_ann, img_id, gt_folder, pred_folder, categories):
-    pq_stat = PQStat()
 
 
-    pan_gt = np.array(Image.open(os.path.join(gt_folder, gt_ann['file_name'])), dtype=np.uint32)
-    pan_gt = rgb2id(pan_gt)
-    pan_pred = np.array(Image.open(os.path.join(pred_folder, pred_ann['file_name'])), dtype=np.uint32)
-    pan_pred = rgb2id(pan_pred)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def pq_inspection(gt_ann, pred_ann, gt_map, pred_map):
+    """
+
+    :param gt_ann: ground truth annotation (panoptic format, loaded from json)
+    :param pred_ann: predicted annotation (panoptic format, loaded from json)
+    :param gt_map: ground truth label map (from PNG annotation)
+    :param pred_map: predicted truth label map (from PNG annotation)
+    :return:
+    """
+
+    #pq_stat = PQStat()
 
     gt_segms = {el['id']: el for el in gt_ann['segments_info']}
     pred_segms = {el['id']: el for el in pred_ann['segments_info']}
 
-    # predicted segments area calculation + prediction sanity checks
-    pred_labels_set = set(el['id'] for el in pred_ann['segments_info'])
-    labels, labels_cnt = np.unique(pan_pred, return_counts=True)
-    for label, label_cnt in zip(labels, labels_cnt):
-        if label not in pred_segms:
-            if label == VOID:
+    # Predicted segments area calculation + prediction sanity checks
+    pred_ids_set = set(pred_segms.keys())
+    pred_map_ids, pred_map_ids_cnt = np.unique(pred_map, return_counts=True)
+    for s_id, id_cnt in zip(pred_map_ids, pred_map_ids_cnt):
+        if s_id not in pred_segms:
+            if s_id == VOID:
                 continue
-            raise KeyError('In the image with ID {} segment with ID {} is presented in PNG and not presented in JSON.'.format(gt_ann['image_id'], label))
-        pred_segms[label]['area'] = label_cnt
-        pred_labels_set.remove(label)
-        if pred_segms[label]['category_id'] not in categories:
-            raise KeyError('In the image with ID {} segment with ID {} has unknown category_id {}.'.format(gt_ann['image_id'], label, pred_segms[label]['category_id']))
-    if len(pred_labels_set) != 0:
-        raise KeyError('In the image with ID {} the following segment IDs {} are presented in JSON and not presented in PNG.'.format(gt_ann['image_id'], list(pred_labels_set)))
+            raise KeyError('In the image with ID {} segment with ID {} is presented in PNG and not presented in JSON.'.format(gt_ann['image_id'], s_id))
+        pred_segms[s_id]['area'] = id_cnt
+        pred_ids_set.remove(s_id)
+    if len(pred_ids_set) != 0:
+        raise KeyError('In the image with ID {} the following segment IDs {} are presented in JSON and not presented in PNG.'.format(gt_ann['image_id'], list(pred_ids_set)))
 
-    # confusion matrix calculation
-    pan_gt_pred = pan_gt.astype(np.uint64) * OFFSET + pan_pred.astype(np.uint64)
-    gt_pred_map = {}
-    labels, labels_cnt = np.unique(pan_gt_pred, return_counts=True)
-    for label, intersection in zip(labels, labels_cnt):
-        gt_id = label // OFFSET
-        pred_id = label % OFFSET
-        gt_pred_map[(gt_id, pred_id)] = intersection
+    # Compute intersection between gt and pred objects
+    pan_gt_pred = gt_map.astype(np.uint64) * OFFSET + pred_map.astype(np.uint64)
+    gt_pred_intersect = {}    # Dictionary with (gt id, pred_id) as key. Number of pixels of the intersection as value.
+    gtpred_ids, gtpred_ids_cnt = np.unique(pan_gt_pred, return_counts=True)
+    for gtpred_id, intersection in zip(gtpred_ids, gtpred_ids_cnt):
+        gt_id = gtpred_id // OFFSET
+        pred_id = gtpred_id % OFFSET
+        gt_pred_intersect[(gt_id, pred_id)] = intersection
 
-    # count all matched pairs
+    # Count all matched pairs (those with IoU>0.5 and same class)
     gt_matched = set()
     pred_matched = set()
-    for label_tuple, intersection in gt_pred_map.items():
-        gt_label, pred_label = label_tuple
-        if gt_label not in gt_segms:
+    tp_list = []
+    for label_tuple, intersection in gt_pred_intersect.items():
+        gt_id, pred_id = label_tuple
+        if gt_id not in gt_segms:
             continue
-        if pred_label not in pred_segms:
+        if pred_id not in pred_segms:
             continue
-        if gt_segms[gt_label]['iscrowd'] == 1:
-            continue
-        if gt_segms[gt_label]['category_id'] != pred_segms[pred_label]['category_id']:
+        if gt_segms[gt_id]['iscrowd'] == 1:
             continue
 
-        union = pred_segms[pred_label]['area'] + gt_segms[gt_label]['area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
+        # Important: check that the two categories are the same
+        if gt_segms[gt_id]['category_id'] != pred_segms[pred_id]['category_id']:
+            continue
+
+        # Compute IoU between segments
+        union = pred_segms[pred_id]['area'] + gt_segms[gt_id]['area'] - intersection - gt_pred_intersect.get((VOID, pred_id), 0)
         iou = intersection / union
         if iou > 0.5:
-            pq_stat[gt_segms[gt_label]['category_id']].tp += 1
-            pq_stat[gt_segms[gt_label]['category_id']].iou += iou
-            gt_matched.add(gt_label)
-            pred_matched.add(pred_label)
+            #pq_stat[gt_segms[gt_id]['category_id']].tp += 1       # Add true positive for the corresponding class
+            #pq_stat[gt_segms[gt_id]['category_id']].iou += iou
+            gt_matched.add(gt_id)
+            pred_matched.add(pred_id)
+            tp_list.append(pred_id) # Add prediction to true positives
 
-    # count false negatives
+    # Count false negatives (i.e. Ground truth segments that are not matched)
     crowd_labels_dict = {}
-    for gt_label, gt_info in gt_segms.items():
-        if gt_label in gt_matched:
+    fn_list = []
+    for gt_id, gt_info in gt_segms.items():
+        if gt_id in gt_matched:
             continue
         # crowd segments are ignored
         if gt_info['iscrowd'] == 1:
-            crowd_labels_dict[gt_info['category_id']] = gt_label
+            crowd_labels_dict[gt_info['category_id']] = gt_id
             continue
-        pq_stat[gt_info['category_id']].fn += 1
+        #pq_stat[gt_info['category_id']].fn += 1
+        fn_list.append(gt_id)
 
-    # count false positives
+    # Count false positives (i.e. Predicted samples that are not matched)
     fp_list = []
-    for pred_label, pred_info in pred_segms.items():
-        if pred_label in pred_matched:
+    for pred_id, pred_info in pred_segms.items():
+        if pred_id in pred_matched:
             continue
-        # intersection of the segment with VOID
-        intersection = gt_pred_map.get((VOID, pred_label), 0)
+        # Intersection of the segment with VOID
+        intersection = gt_pred_intersect.get((VOID, pred_id), 0)
         # plus intersection with corresponding CROWD region if it exists
         if pred_info['category_id'] in crowd_labels_dict:
-            intersection += gt_pred_map.get((crowd_labels_dict[pred_info['category_id']], pred_label), 0)
-        # predicted segment is ignored if more than half of the segment correspond to VOID and CROWD regions
+            intersection += gt_pred_intersect.get((crowd_labels_dict[pred_info['category_id']], pred_id), 0)
+        # Predicted segment is ignored if more than half of the segment correspond to VOID and CROWD regions
         if intersection / pred_info['area'] > 0.5:
             continue
         #Found a false positive
-        pq_stat[pred_info['category_id']].fp += 1
-        fp_list.append(pred_label) #Store id of the false positive
+        #pq_stat[pred_info['category_id']].fp += 1
+        fp_list.append(pred_id) #Store id of the false positive
 
-    res = {'img': img_id, 'fp':fp_list}
+    res = {'img': gt_ann['image_id'], 'fp':fp_list, 'tp':tp_list, 'fn':fn_list}
     return res
 
 

@@ -107,3 +107,21 @@ def create_kb_histograms(graphs_json_path, out_json_path):
 
     print(f"Number of analyzed object pairs: {n_pairs}")
     print(f"Number of generated histograms: {len(histograms)}")
+
+def filter_kb_histograms(kb, min_sup, max_entropy):
+    """
+    :param kb: knowledge base (json format)
+    :param min_sup: minimum support for filtering histograms
+    :param max_entropy: maximum entropy for filtering histograms
+    :return: filtered knowledge base, based on min_sup and max_entropy
+    """
+    return {pair : h for pair, h in kb.items() if h['sup']>=min_sup and h['entropy']<=max_entropy}
+
+def get_sup_ent_lists(kb):
+    """
+    Get support and entropy values in two lists, from the knowledge base (json format)
+    :param histograms:
+    """
+    sup = [h['sup'] for h in kb.values()]
+    ent = [h['entropy'] for h in kb.values()]
+    return sup, ent

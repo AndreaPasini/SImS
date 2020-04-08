@@ -131,7 +131,7 @@ def pq_inspection(gt_ann, pred_ann, gt_map, pred_map):
     :return:
     """
 
-    #pq_stat = PQStat()
+    pq_stat = PQStat()
 
     gt_segms = {el['id']: el for el in gt_ann['segments_info']}
     pred_segms = {el['id']: el for el in pred_ann['segments_info']}
@@ -179,11 +179,11 @@ def pq_inspection(gt_ann, pred_ann, gt_map, pred_map):
         union = pred_segms[pred_id]['area'] + gt_segms[gt_id]['area'] - intersection - gt_pred_intersect.get((VOID, pred_id), 0)
         iou = intersection / union
         if iou > 0.5:
-            #pq_stat[gt_segms[gt_id]['category_id']].tp += 1       # Add true positive for the corresponding class
-            #pq_stat[gt_segms[gt_id]['category_id']].iou += iou
+            pq_stat[gt_segms[gt_id]['category_id']].tp += 1       # Add true positive for the corresponding class
+            pq_stat[gt_segms[gt_id]['category_id']].iou += iou
             gt_matched.add(gt_id)
             pred_matched.add(pred_id)
-            tp_list.append(pred_id) # Add prediction to true positives
+            tp_list.append(int(pred_id)) # Add prediction to true positives
 
     # Count false negatives (i.e. Ground truth segments that are not matched)
     crowd_labels_dict = {}
@@ -195,7 +195,7 @@ def pq_inspection(gt_ann, pred_ann, gt_map, pred_map):
         if gt_info['iscrowd'] == 1:
             crowd_labels_dict[gt_info['category_id']] = gt_id
             continue
-        #pq_stat[gt_info['category_id']].fn += 1
+        pq_stat[gt_info['category_id']].fn += 1
         fn_list.append(gt_id)
 
     # Count false positives (i.e. Predicted samples that are not matched)
@@ -212,10 +212,10 @@ def pq_inspection(gt_ann, pred_ann, gt_map, pred_map):
         if intersection / pred_info['area'] > 0.5:
             continue
         #Found a false positive
-        #pq_stat[pred_info['category_id']].fp += 1
+        pq_stat[pred_info['category_id']].fp += 1
         fp_list.append(pred_id) #Store id of the false positive
-
-    res = {'img': gt_ann['image_id'], 'fp':fp_list, 'tp':tp_list, 'fn':fn_list}
+    pqs = pq_stat.get_pq()
+    res = {'img_id':gt_ann['image_id'], 'fp':fp_list, 'tp':tp_list, 'pq':round(pqs['pq'],4), 'sq':round(pqs['sq'],4), 'rq':round(pqs['rq'],4)}
     return res
 
 

@@ -44,7 +44,26 @@ class PQStat():
             self.pq_per_cat[label] += pq_stat_cat
         return self
 
-    def pq_average(self, categories, isthing):
+    def get_pq(self):
+        pq, sq, rq, n = 0, 0, 0, 0
+        for label in self.pq_per_cat.keys():
+            iou = self.pq_per_cat[label].iou
+            tp = self.pq_per_cat[label].tp
+            fp = self.pq_per_cat[label].fp
+            fn = self.pq_per_cat[label].fn
+            if tp + fp + fn == 0:
+                continue
+            n += 1
+            pq_class = iou / (tp + 0.5 * fp + 0.5 * fn)
+            sq_class = iou / tp if tp != 0 else 0
+            rq_class = tp / (tp + 0.5 * fp + 0.5 * fn)
+            pq += pq_class
+            sq += sq_class
+            rq += rq_class
+
+        return {'pq': pq / n, 'sq': sq / n, 'rq': rq / n}
+
+    def pq_average(self, categories, isthing=None):
         pq, sq, rq, n = 0, 0, 0, 0
         per_class_results = {}
         for label, label_info in categories.items():

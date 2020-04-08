@@ -24,6 +24,7 @@ position_labels_csv_path = os.path.join(position_dataset_dir, 'training/LabelsLi
 out_panoptic_dir = os.path.join(COCO_dir, 'output/panoptic/')
 out_panoptic_json_path = os.path.join(out_panoptic_dir, 'panoptic.json')
 out_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
+pq_info_path = os.path.join(out_panoptic_dir, 'panoptic_quality.json')
 ##??
 cnn_nodes_links_json_path = os.path.join(position_dataset_res_dir, 'cnn_nodes_links.json')
 

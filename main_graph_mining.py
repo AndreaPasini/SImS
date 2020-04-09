@@ -9,7 +9,8 @@ pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.graph import json_to_nx, print_graph_picture
 from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, _read_graphs
 
-from config import freq_train_graphs_path, train_graphs_json_path, train_graphs_data_path, kb_pairwise_json_path
+from config import freq_train_graphs_path, train_graphs_json_path, train_graphs_data_path, kb_pairwise_json_path, \
+    train_graphs_data_kbfilter_path, freq_train_graphs_kbfilter_path
 import json
 import os
 
@@ -20,6 +21,8 @@ action = 'GRAPH_MINING'
 
 
 def graph_mining():
+    filter_KB = True
+
     # Read KB
     with open(kb_pairwise_json_path, 'r') as f:
         kb = json.load(f)
@@ -29,24 +32,34 @@ def graph_mining():
     med = np.median(np.log10(sup))
     min_sup = int(round(10 ** med))
 
-    kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy) # No filter for entropy
+    if filter_KB:
+        kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
+        sel_train_graphs_data_path = train_graphs_data_kbfilter_path
+        sel_freq_graphs_path = freq_train_graphs_kbfilter_path
+    else:
+        kb_filtered = filter_kb_histograms(kb, min_sup, 100)  # No filter for entropy
+        sel_train_graphs_data_path = train_graphs_data_path
+        sel_freq_graphs_path = freq_train_graphs_path
 
     with open(train_graphs_json_path, 'r') as f:
         train_graphs = json.load(f)
     train_graph_filtered = filter_graph_edges(kb_filtered, train_graphs)
 
-    # Convert json graphs to the correct format for gspan mining.
-    prepare_gspan_graph_data(train_graphs_data_path, train_graph_filtered)
-    print("Mining...")
     ############# Con supporto 0.01 ci mette 899 secondi e trova 11500 grafi frequenti
     minsup_graph = min_sup/len(train_graphs) #64/len()
+
+    # Convert json graphs to the correct format for gspan mining.
+    prepare_gspan_graph_data(sel_train_graphs_data_path, train_graph_filtered)
+
+    print("Mining...")
+
     # GSpan, c implementation (https://www.researchgate.net/publication/296573357_gSpan_Implementation,
     # gSpan: graph-based substructure pattern mining (ICDM 2003),)
-    os.system(f'./gSpan-64 -f {train_graphs_data_path} -s {minsup_graph} -o')
+    os.system(f'./gSpan-64 -f {sel_train_graphs_data_path} -s {minsup_graph} -o')
     print("Done.")
-    freq_graphs = _read_graphs(f'{train_graphs_data_path}.fp')
+    freq_graphs = _read_graphs(f'{sel_train_graphs_data_path}.fp')
     print("Saving frequent graphs...")
-    with open(freq_train_graphs_path, 'w') as f:
+    with open(sel_freq_graphs_path, 'w') as f:
         f.write(json.dumps(freq_graphs))
     print("Done.")
 

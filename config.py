@@ -48,5 +48,7 @@ likelihoods_json_path = os.path.join(anomaly_detection_dir, 'val_panoptic_likeli
 fp_tp_json_path = os.path.join(anomaly_detection_dir, 'fp_tp_likelihoods.json')
 
 # Graph mining
+train_graphs_data_kbfilter_path = os.path.join(position_dataset_res_dir, 'train_graphs_kb_filter.data')
+freq_train_graphs_kbfilter_path = os.path.join(kb_dir, 'train_freqGraph_kb_filter.json')
 train_graphs_data_path = os.path.join(position_dataset_res_dir, 'train_graphs.data')
-freq_train_graphs_path = os.path.join(kb_dir, 'train_freqGraphs.json')
+freq_train_graphs_path = os.path.join(kb_dir, 'train_freqGraph.json')

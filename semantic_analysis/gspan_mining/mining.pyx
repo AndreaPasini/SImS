@@ -8,13 +8,10 @@ pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.graph import nx_to_json, json_graph_to_gspan, Graph
 
 
-def prepare_gspan_graph_data(train_graphs_data_path, train_graphs_json_path):
+def prepare_gspan_graph_data(freq_graphs_output_path, graphs):
     """
     Prepare and save graphs in the correct encoding for applying GSpan.
     """
-    with open(train_graphs_json_path, 'r') as f:
-        graphs = json.load(f)
-
     # Encode panoptic class ids
     # gspan requests as input label values that start from 2.
     coco_categories = load_panoptic_categ_list()
@@ -25,7 +22,7 @@ def prepare_gspan_graph_data(train_graphs_data_path, train_graphs_json_path):
     conv_pos_category = {c: i + 2 for i, c in enumerate(position_labels)}
 
     # Prepare nodes with the correct format for graph gspan_mining
-    with open(train_graphs_data_path, 'w') as f:
+    with open(freq_graphs_output_path, 'w') as f:
         for g_index, g in enumerate(graphs):
             f.write(f"t # {g_index}\n")
             f.write(json_graph_to_gspan(g, conv_coco_category, conv_pos_category))

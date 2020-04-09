@@ -1,34 +1,52 @@
-import pandas as pd
+from scipy.stats import entropy
+import numpy as np
 import pyximport
+
+pyximport.install(language_level=3)
+from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges
+
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.graph import json_to_nx, print_graph_picture
-from semantic_analysis.gspan_mining.gspan import gSpan
-from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, gspan_to_final_graphs, _read_graphs
+from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, _read_graphs
 
-from config import position_dataset_res_dir, kb_freq_graphs_path, train_graphs_json_path, COCO_train_json_path
+from config import freq_train_graphs_path, train_graphs_json_path, train_graphs_data_path, kb_pairwise_json_path
 import json
-import networkx as nx
 import os
 
-# Configuration
-train_graphs_data_path = os.path.join(position_dataset_res_dir, 'train_graphs.data')
-
 ### Choose an action ###
-#action = 'GRAPH_MINING'
-action = 'PRINT_GRAPHS'
+action = 'GRAPH_MINING'
+#action = 'PRINT_GRAPHS'
 ########################
 
 
 def graph_mining():
+    # Read KB
+    with open(kb_pairwise_json_path, 'r') as f:
+        kb = json.load(f)
+    # Get support and entropy
+    sup, entr = get_sup_ent_lists(kb)
+    max_entropy = entropy([1 / 3, 1 / 3, 1 / 3])
+    med = np.median(np.log10(sup))
+    min_sup = int(round(10 ** med))
+
+    kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy) # No filter for entropy
+
+    with open(train_graphs_json_path, 'r') as f:
+        train_graphs = json.load(f)
+    train_graph_filtered = filter_graph_edges(kb_filtered, train_graphs)
+
     # Convert json graphs to the correct format for gspan mining.
-    prepare_gspan_graph_data(train_graphs_data_path, train_graphs_json_path)
+    prepare_gspan_graph_data(train_graphs_data_path, train_graph_filtered)
     print("Mining...")
     ############# Con supporto 0.01 ci mette 899 secondi e trova 11500 grafi frequenti
-    os.system('./gSpan-64 -f ../COCO/positionDataset/results/train_graphs.data -s 0.02 -o')
+    minsup_graph = min_sup/len(train_graphs) #64/len()
+    # GSpan, c implementation (https://www.researchgate.net/publication/296573357_gSpan_Implementation,
+    # gSpan: graph-based substructure pattern mining (ICDM 2003),)
+    os.system(f'./gSpan-64 -f {train_graphs_data_path} -s {minsup_graph} -o')
     print("Done.")
-    freq_graphs = _read_graphs('../COCO/positionDataset/results/train_graphs.data.fp')
+    freq_graphs = _read_graphs(f'{train_graphs_data_path}.fp')
     print("Saving frequent graphs...")
-    with open(kb_freq_graphs_path, 'w') as f:
+    with open(freq_train_graphs_path, 'w') as f:
         f.write(json.dumps(freq_graphs))
     print("Done.")
 
@@ -37,7 +55,7 @@ def main():
     if action=='GRAPH_MINING':
         graph_mining()
     elif action=='PRINT_GRAPHS':
-        with open(kb_freq_graphs_path, 'r') as f:
+        with open(freq_train_graphs_path, 'r') as f:
             graphs = json.load(f)
             i = 0
             for g_dict in graphs:
@@ -56,3 +74,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+

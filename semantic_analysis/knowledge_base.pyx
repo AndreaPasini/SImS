@@ -117,6 +117,29 @@ def filter_kb_histograms(kb, min_sup, max_entropy):
     """
     return {pair : h for pair, h in kb.items() if h['sup']>=min_sup and h['entropy']<=max_entropy}
 
+def get_likelihood(nodes_map, link, kb):
+    """
+    Retrieve from the Knowledge Base the likelihood of this link
+    :param nodes_map: map NodeId:ClassLabel(COCO)
+    :param link: graph link
+    :param kb: knowledge base (read from json)
+    :return: likelihood l of link and histogram; None if there is no histogram
+    """
+    sub = nodes_map[link['s']]
+    ref = nodes_map[link['r']]
+    pos = link['pos']
+    pair = f"{sub},{ref}"
+
+    # Check for the likelihood in the KB
+    if pair in kb:
+        hist = kb[f"{sub},{ref}"]
+        if pos in hist:
+            return hist[pos], hist
+        else:
+            return 0, hist
+    return None, None
+
+
 def get_sup_ent_lists(kb):
     """
     Get support and entropy values in two lists, from the knowledge base (json format)
@@ -125,3 +148,33 @@ def get_sup_ent_lists(kb):
     sup = [h['sup'] for h in kb.values()]
     ent = [h['entropy'] for h in kb.values()]
     return sup, ent
+
+
+def filter_graph_edges(kb, graphs):
+    """
+    Prune graph edges, when they are not present in the knowledge base
+    :return: filtered graphs
+    """
+    pruned_graphs = []
+    for g in graphs:
+        nodes = {node['id'] : node['label'] for node in g['nodes']}
+        links = []
+        for link in g['links']:
+            l,h = get_likelihood(nodes, link, kb)
+            if l is not None:
+                links.append(link)
+        if len(links)!=len(g['links']):
+            in_edge_ids = []
+            for link in links:
+                in_edge_ids.append(link['s'])
+                in_edge_ids.append(link['r'])
+            in_edge_ids = set(in_edge_ids)
+            nodes_list = []
+            for n in g['nodes']:
+                if n['id'] in in_edge_ids:
+                    nodes_list.append(n)
+        else:
+            nodes_list = g['nodes']
+        pruned_graph = {'directed':g['directed'],'multigraph':g['multigraph'],'graph':g['graph'],'nodes': nodes_list, 'links':links}
+        pruned_graphs.append(pruned_graph)
+    return pruned_graphs

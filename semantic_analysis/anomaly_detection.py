@@ -1,27 +1,53 @@
+import pyximport
+pyximport.install(language_level=3)
+from semantic_analysis.knowledge_base import get_likelihood
 
 
+def inspect_anomalies2(image_graph, kb, pq_stat, anomaly_stat):
+
+    nodes = {}
+    objects = {}
+    for node in image_graph['nodes']:
+        nodes[node['id']] = node['label']
+        objects[node['id']] = {'n_links':0, 'n_anom':0, 'l':0}
+    # Run for each link in the graph
+    for link in image_graph['links']:
+        l,_ = get_likelihood(nodes, link, kb)
+
+        if l is not None:
+            if l<0.01:
+                objects[link['s']]['n_anom']+= 1
+                objects[link['r']]['n_anom']+= 1
+            objects[link['s']]['n_links'] += 1
+            objects[link['r']]['n_links'] += 1
+            objects[link['s']]['l'] += l
+            objects[link['r']]['l'] += l
+
+    for obj_id, stat in objects.items():
+        tpfp = None
+        if obj_id in pq_stat['fp']:
+            tpfp = 'fp'
+        elif obj_id in pq_stat['tp']:
+            tpfp = 'tp'
+        if tpfp is not None:
+            anomaly_stat[tpfp]['n_anom'].append(stat['n_anom'])
+            anomaly_stat[tpfp]['n_links'].append(stat['n_links'])
+            if stat['n_links']>0:
+                anomaly_stat[tpfp]['perc_anom'].append(stat['n_anom']/stat['n_links'])
+                anomaly_stat[tpfp]['avg_l'].append(stat['l']/stat['n_links'])
+            else:
+                anomaly_stat[tpfp]['perc_anom'].append(0)
+                anomaly_stat[tpfp]['avg_l'].append(0)
 
 
 def inspect_anomalies(image_graph, kb, pq_stat, anomaly_stat, no_istogram):
 
-    nodes = {}
-    for node in image_graph['nodes']:
-        nodes[node['id']] = node['label']
+    # Node map
+    nodes = {node['id']: node['label'] for node in image_graph['nodes']}
+
     # Run for each link in the graph
     for link in image_graph['links']:
-        sub = nodes[link['s']]
-        ref = nodes[link['r']]
-        pos = link['pos']
-        pair = f"{sub},{ref}"
-        selected_opt = None
-        # Check for the likelihood in the KB
-        l = None
-        if pair in kb:
-            hist = kb[f"{sub},{ref}"]
-            if pos in hist:
-                l = hist[pos]
-            else:
-                l = 0
+        l,hist = get_likelihood(nodes, link, kb)
 
         # Look for the different options
         if link['s'] in pq_stat['fp'] and link['r'] in pq_stat['fp']:

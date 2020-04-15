@@ -1,15 +1,13 @@
 import json
 import os
-import seaborn as sns
-import matplotlib.pyplot as plt
 from PIL import Image
 
-from config import likelihoods_json_path, out_panoptic_json_path, out_panoptic_dir, \
-    position_classifier_path, COCO_val_json_path, \
-    COCO_ann_val_dir, kb_pairwise_json_path, kb_clean_pairwise_json_path, anomaly_detection_dir, \
-    charts_anomalies_likelihoods_path, fp_chart, tp_chart, fp_tp_json_path, out_panoptic_val_graphs_json_path, \
-    anomaly_statistics_json_path, pq_info_path, anomaly_statistics_kbfilter_json_path, \
-    objectanomaly_statistics_kbfilter_json_path
+from config import out_panoptic_json_path, out_panoptic_dir, \
+    COCO_val_json_path, \
+    COCO_ann_val_dir, kb_pairwise_json_path, anomaly_detection_dir, \
+    out_panoptic_val_graphs_json_path, \
+    pq_info_path, pairanomaly_kbfilter_json_path, \
+    objectanomaly_kbfilter_json_path, objectanomaly_json_path, pairanomaly_json_path
 from main_inspection import pq_inspection
 import pyximport
 from tqdm import tqdm
@@ -22,10 +20,7 @@ from semantic_analysis.position_classifier import create_kb_graphs
 from scipy.stats import entropy
 import numpy as np
 
-### Choose methods to be run ###
-class RUN_CONFIG:
-    compute_val_panoptic_likelihoods = True
-    analyze_likelihoods = True
+
 
 
 def compute_pq_stats(gt_json, pred_json, output_path):
@@ -59,7 +54,7 @@ def compute_pq_stats(gt_json, pred_json, output_path):
     with open(output_path, 'w') as f:
         json.dump(pq_info, f)
 
-def inspect_pairwise_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered):
+def inspect_pairwise_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered, output_path):
     with open(pq_info_path, 'r') as f:
         pq_info_json = json.load(f)
     pq_info = {}
@@ -100,11 +95,10 @@ def inspect_pairwise_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_f
 
     if not os.path.isdir(anomaly_detection_dir):
         os.makedirs(anomaly_detection_dir)
-    with open(anomaly_statistics_kbfilter_json_path, "w") as f:
-        # with open(anomaly_statistics_json_path, "w") as f:
+    with open(output_path, "w") as f:
         json.dump(final_stats, f)
 
-def analyze_object_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered):
+def analyze_object_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered, thr, output_path):
     with open(pq_info_path, 'r') as f:
         pq_info_json = json.load(f)
     pq_info = {}
@@ -128,83 +122,67 @@ def analyze_object_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_fil
         pq_stat = pq_info[image_id]
 
         # Analyze image graph and compare with knowledge base. Fill anomaly_stat
-        inspect_anomalies2(panoptic_graphs[image_id], kb_filtered, pq_stat, anomaly_stat)
+        inspect_anomalies2(panoptic_graphs[image_id], kb_filtered, pq_stat, anomaly_stat, thr)
 
         pbar.update()
 
     pbar.close()
 
-    with open(objectanomaly_statistics_kbfilter_json_path, "w") as f:
-    # with open(anomaly_statistics_json_path, "w") as f:
+    with open(output_path, "w") as f:
         json.dump(anomaly_stat, f)
 
 
 if __name__ == "__main__":
-
-    #action = 'compute_pq_stats'
-    #action = 'analyze_anomalies'
-    action = 'analyze_object_anomalies'
-
-    if RUN_CONFIG.compute_val_panoptic_likelihoods:
-        # Load KB
-        with open(kb_pairwise_json_path, 'r') as f:
-            kb = json.load(f)
-        # Get support and entropy
-        sup, entr = get_sup_ent_lists(kb)
-        max_entropy = entropy([1/3,1/3,1/3])
-        med = np.median(np.log10(sup))
-        min_sup = int(round(10**med))
-        # Filter KB
-        #kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
+    ### Choose methods to be run ###
+    class RUN_CONFIG:
+        compute_pq_stats = False
+        analyze_pairwise_anomalies = False
+        analyze_object_anomalies = True
+        filter_kb = False   #Whether to filter KB with max entropy for detecting anomalies
+        obj_anom_thr = 0.01 # Threshold for detecting an anomalous link on object anomalies
+    # Load KB
+    with open(kb_pairwise_json_path, 'r') as f:
+        kb = json.load(f)
+    # Get support and entropy
+    sup, entr = get_sup_ent_lists(kb)
+    max_entropy = entropy([1/3,1/3,1/3])
+    med = np.median(np.log10(sup))
+    min_sup = int(round(10**med))
+    # Filter KB
+    if RUN_CONFIG.filter_kb:
+        kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
+    else:
         kb_filtered = filter_kb_histograms(kb, min_sup, 100)# No filter
 
-        # Load ground truth (segmentations)
-        with open(COCO_val_json_path, 'r') as f:
-            gt_json = json.load(f)
-        # Load predictions (panoptic CNN output)
-        with open(out_panoptic_json_path, 'r') as f:
-            pred_json = json.load(f)
-        # Load graphs (predictions)
-        with open(out_panoptic_val_graphs_json_path, 'r') as f:
-            panoptic_graphs_json = json.load(f)
+    # Load ground truth (segmentations)
+    with open(COCO_val_json_path, 'r') as f:
+        gt_json = json.load(f)
+    # Load predictions (panoptic CNN output)
+    with open(out_panoptic_json_path, 'r') as f:
+        pred_json = json.load(f)
+    # Load graphs (predictions)
+    with open(out_panoptic_val_graphs_json_path, 'r') as f:
+        panoptic_graphs_json = json.load(f)
 
-        if action == 'compute_pq_stats':
-            compute_pq_stats(gt_json, pred_json, pq_info_path)
-        elif action == 'analyze_anomalies':
-            inspect_pairwise_anomalies(gt_json, pred_json, pq_info_path, panoptic_graphs_json, kb_filtered)
-        elif action == 'analyze_object_anomalies':
-            analyze_object_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered)
-
-
-    # if analyze_likelihoods:
-    #     if not os.path.isdir(charts_anomalies_likelihoods_path):
-    #         os.makedirs(charts_anomalies_likelihoods_path)
-    #
-    #     with open(likelihoods_json_path, 'r') as f:
-    #         val_panoptic_likelihoods = json.load(f)
-    #     fp = []
-    #     tp = []
-    #     noLikelihoods = []
-    #     for img in val_panoptic_likelihoods.values():
-    #         for k, v in img['pairs'].items():
-    #             if v['l'] is not None:
-    #                 objs = k.split(",")
-    #                 if int(objs[0]) in img['fp'] or int(objs[1]) in img['fp']:
-    #                     fp.append(v['l'])
-    #                 else:
-    #                     tp.append(v['l'])
-    #             else:
-    #                 noLikelihoods.append(k)
-    #     likelihoods = {'fp': {'likelihood': fp}, 'tp': {'likelihood': tp}, 'noLikelihoods': {'pairs': noLikelihoods}}
-    #     with open(fp_tp_json_path, "w") as f:
-    #         json.dump(likelihoods, f)
-    #     plt.subplots(1, 1, figsize=(10, 6))
-    #     sns.kdeplot(fp, shade=True, cut=0,  color="r", label='False Positive')
-    #     sns.rugplot(fp, color="r")
-    #     plt.savefig(fp_chart)
-    #     plt.subplots(1, 1, figsize=(10, 6))
-    #     sns.kdeplot(tp, shade=True, cut=0, color="b", label='False Positive')
-    #     sns.rugplot(tp, color="b")
-    #     plt.savefig(tp_chart)
-    #     print("Process 'analyze_likelihoods' Completed")
-    # print("Anomalies elaboration Completed")
+    if RUN_CONFIG.compute_pq_stats:
+        # Panoptic quality of all objects in predicted graphs from the CNN
+        # Create necessary file for 'analyze_pairwise_anomalies' and 'analyze_object_anomalies'
+        compute_pq_stats(gt_json, pred_json, pq_info_path)
+    if RUN_CONFIG.analyze_pairwise_anomalies:
+        # Pairwise anomalies (find anomalous links in graph)
+        # Stores in a json file 'likelihood', 'sup', 'entropy' of all the graphs links (of test CNN images)
+        # l, sup, entropy are stored separately for both_fp, both_tp, tp_fp links, based on whether the objects of a link
+        # are tp or fp. (both_tp should present higher likelihoods).
+        if RUN_CONFIG.filter_kb:
+            out_path = pairanomaly_kbfilter_json_path
+        else:
+            out_path = pairanomaly_json_path
+        inspect_pairwise_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered, out_path)
+    if RUN_CONFIG.analyze_object_anomalies:
+        # Object-wise anomalies (for each object compute average likelihoods of its graph links)
+        # Stores the json results in two lists: 'fp' and 'tp' objects (fp objects should present lower likelihoods)
+        if RUN_CONFIG.filter_kb:
+            out_path = f"{objectanomaly_kbfilter_json_path[:-5]}_{str(RUN_CONFIG.obj_anom_thr)[2:]}.json"
+        else:
+            out_path = f"{objectanomaly_json_path[:-5]}_{str(RUN_CONFIG.obj_anom_thr)[2:]}.json"
+        analyze_object_anomalies(gt_json, pq_info_path, panoptic_graphs_json, kb_filtered, RUN_CONFIG.obj_anom_thr, out_path)

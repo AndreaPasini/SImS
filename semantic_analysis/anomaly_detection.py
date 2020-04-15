@@ -3,7 +3,7 @@ pyximport.install(language_level=3)
 from semantic_analysis.knowledge_base import get_likelihood
 
 
-def inspect_anomalies2(image_graph, kb, pq_stat, anomaly_stat):
+def inspect_anomalies2(image_graph, kb, pq_stat, anomaly_stat, thr):
 
     nodes = {}
     objects = {}
@@ -15,7 +15,7 @@ def inspect_anomalies2(image_graph, kb, pq_stat, anomaly_stat):
         l,_ = get_likelihood(nodes, link, kb)
 
         if l is not None:
-            if l<0.01:
+            if l<thr:
                 objects[link['s']]['n_anom']+= 1
                 objects[link['r']]['n_anom']+= 1
             objects[link['s']]['n_links'] += 1

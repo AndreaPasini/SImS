@@ -37,9 +37,11 @@ kb_clean_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKBclean.json')
 
 # Anomalies
 anomaly_detection_dir = os.path.join(COCO_dir, 'anomalies/')
-anomaly_statistics_json_path = os.path.join(anomaly_detection_dir, 'pq_statistics.json')
-anomaly_statistics_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'pq_statistics_kb_filter.json')
-objectanomaly_statistics_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'objanomaly_kb_filter.json')
+pairanomaly_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly.json')
+pairanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly_kbfilter.json')
+objectanomaly_json_path = os.path.join(anomaly_detection_dir, 'objanomaly.json')
+objectanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'objanomaly_kbfilter.json')
+
 
 charts_anomalies_likelihoods_path = os.path.join(anomaly_detection_dir, 'charts/')
 fp_chart = os.path.join(charts_anomalies_likelihoods_path, 'fp_chart.png')
@@ -48,7 +50,11 @@ likelihoods_json_path = os.path.join(anomaly_detection_dir, 'val_panoptic_likeli
 fp_tp_json_path = os.path.join(anomaly_detection_dir, 'fp_tp_likelihoods.json')
 
 # Graph mining
+graph_mining_dir = kb_dir = os.path.join(COCO_dir, 'gmining/')
 train_graphs_data_kbfilter_path = os.path.join(position_dataset_res_dir, 'train_graphs_kb_filter.data')
-freq_train_graphs_kbfilter_path = os.path.join(kb_dir, 'train_freqGraph_kb_filter.json')
 train_graphs_data_path = os.path.join(position_dataset_res_dir, 'train_graphs.data')
+
+
 freq_train_graphs_path = os.path.join(kb_dir, 'train_freqGraph.json')
+freq_train_graphs_kbfilter_path = os.path.join(kb_dir, 'train_freqGraph_kb_filter.json')
+

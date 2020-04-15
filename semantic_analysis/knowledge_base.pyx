@@ -155,12 +155,14 @@ def filter_graph_edges(kb, graphs):
     Prune graph edges, when they are not present in the knowledge base
     :return: filtered graphs
     """
+    stat_avg_nlinks = 0
+    stat_avg_nlinks_filtered = 0
     pruned_graphs = []
     for g in graphs:
-        nodes = {node['id'] : node['label'] for node in g['nodes']}
+        nodes_map = {node['id'] : node['label'] for node in g['nodes']}
         links = []
         for link in g['links']:
-            l,h = get_likelihood(nodes, link, kb)
+            l,h = get_likelihood(nodes_map, link, kb)
             if l is not None:
                 links.append(link)
         if len(links)!=len(g['links']):
@@ -177,4 +179,11 @@ def filter_graph_edges(kb, graphs):
             nodes_list = g['nodes']
         pruned_graph = {'directed':g['directed'],'multigraph':g['multigraph'],'graph':g['graph'],'nodes': nodes_list, 'links':links}
         pruned_graphs.append(pruned_graph)
+        # Update statistics
+        stat_avg_nlinks += len(g['links'])
+        stat_avg_nlinks_filtered += len(pruned_graph['links'])
+
+    print(f"Average number of links in graphs: {stat_avg_nlinks/len(graphs)}")
+    print(f"Average number of links in pruned graphs: {stat_avg_nlinks_filtered / len(graphs)}")
+
     return pruned_graphs

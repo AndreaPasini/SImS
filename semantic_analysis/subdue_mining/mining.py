@@ -44,7 +44,7 @@ def run_subdue_mining(graphs_data_path, nsubs, output_path):
     with open(output_path, 'w') as f:
         f.write(json.dumps(freq_graphs))
     print("Done.")
-    os.remove(output_path+'.txt')
+    #os.remove(output_path+'.txt')
 
 def __read_subdue_output(file_name):
     """

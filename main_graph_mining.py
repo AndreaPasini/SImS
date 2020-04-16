@@ -2,15 +2,15 @@ from scipy.stats import entropy
 import numpy as np
 import pyximport
 
+from datetime import datetime
+from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
+
 pyximport.install(language_level=3)
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges
-
 pyximport.install(language_level=3)
-from semantic_analysis.gspan_mining.graph import json_to_nx, print_graph_picture
-from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, _read_graphs
+from semantic_analysis.gspan_mining.mining import run_gspan_mining, prepare_gspan_graph_data
 
-from config import freq_train_graphs_path, train_graphs_json_path, train_graphs_data_path, kb_pairwise_json_path, \
-    train_graphs_data_kbfilter_path, freq_train_graphs_kbfilter_path, kb_dir, position_dataset_res_dir, graph_mining_dir
+from config import freq_train_graphs_path, train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir
 import json
 import os
 
@@ -24,7 +24,10 @@ def graph_mining(experiment):
     kb_filter="_kbfilter" if experiment['filter_kb'] else ""
 
     sel_train_graphs_data_path = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}_{experiment['alg']}.data")
-    exp_name = f"train_freqGraph{kb_filter}_{experiment['alg']}_{str(experiment['minsup'])[2:]}"
+    if experiment['alg']=='gspan':
+        exp_name = f"train_freqGraph{kb_filter}_{experiment['alg']}_{str(experiment['minsup'])[2:]}"
+    else:
+        exp_name = f"train_freqGraph{kb_filter}_{experiment['alg']}_{experiment['nsubs']}"
     sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name+'.json')
 
     if not os.path.exists(graph_mining_dir):
@@ -32,6 +35,8 @@ def graph_mining(experiment):
 
     # Check whether graph data has already been converted for
     if not os.path.exists(sel_train_graphs_data_path):
+        print(f"Preparing graphs for {experiment['alg']}...")
+
         # Read KB
         with open(kb_pairwise_json_path, 'r') as f:
             kb = json.load(f)
@@ -48,39 +53,35 @@ def graph_mining(experiment):
 
         with open(train_graphs_json_path, 'r') as f:
             train_graphs = json.load(f)
-        train_graph_filtered = filter_graph_edges(kb_filtered, train_graphs)
+        train_graphs_filtered = filter_graph_edges(kb_filtered, train_graphs)
 
-        # Convert json graphs to the correct format for gspan mining.
-        prepare_gspan_graph_data(sel_train_graphs_data_path, train_graph_filtered)
+        if experiment['alg']=='gspan':
+            # Convert json graphs to the correct format for gspan mining.
+            prepare_gspan_graph_data(sel_train_graphs_data_path, train_graphs_filtered)
+        elif experiment['alg']=='subdue':
+            prepare_subdue_graph_data(sel_train_graphs_data_path, train_graphs_filtered)
 
+    # Mining of frequent graphs
+    if experiment['alg'] == 'gspan':
+        run_gspan_mining(sel_train_graphs_data_path, experiment['minsup'], sel_freq_graphs_path)
+    elif experiment['alg'] == 'subdue':
+        run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
 
-
-    print("Mining...")
-
-    ############# Con supporto 0.01 ci mette 899 secondi e trova 11500 grafi frequenti
-    minsup_graph = min_sup / len(train_graphs)  # 64/len()
-
-    # GSpan, c implementation (https://www.researchgate.net/publication/296573357_gSpan_Implementation,
-    # https://sites.cs.ucsb.edu/~xyan/software/gSpan.htm
-    # gSpan: graph-based substructure pattern mining (ICDM 2003),)
-    os.system(f'./gSpan-64 -f {sel_train_graphs_data_path} -s {minsup_graph} -o')
-    print("Done.")
-    freq_graphs = _read_graphs(f'{sel_train_graphs_data_path}.fp')
-    print("Saving frequent graphs...")
-    with open(sel_freq_graphs_path, 'w') as f:
-        f.write(json.dumps(freq_graphs))
-    print("Done.")
 
 def main():
 
     experiments = [{'alg':'gspan', 'filter_kb':True, 'minsup':0.1},
                    {'alg':'gspan', 'filter_kb':True, 'minsup':0.01},
-                   {'alg': 'subdue', 'filter_kb': True, 'minsup': 0.1},
-                   {'alg': 'subdue', 'filter_kb': True, 'minsup': 0.01}
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10},
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100}
                    ]
 
     if action=='GRAPH_MINING':
-        graph_mining(experiments[0])
+        for i in [2,3]:
+            start_time = datetime.now()
+            graph_mining(experiments[i])
+            end_time = datetime.now()
+            print('Duration: ' + str(end_time - start_time))
     elif action=='PRINT_GRAPHS':
         with open(freq_train_graphs_path, 'r') as f:
             graphs = json.load(f)

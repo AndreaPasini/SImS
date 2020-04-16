@@ -1,12 +1,11 @@
-import networkx as nx
-
-from config import position_labels_csv_path
-from panopticapi.utils import load_panoptic_categ_list
 import json
+import networkx as nx
+import os
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.gspan_mining.graph import nx_to_json, json_graph_to_gspan, Graph
-
+from semantic_analysis.gspan_mining.graph_utils import nx_to_json, json_graph_to_gspan
+from config import position_labels_csv_path
+from panopticapi.utils import load_panoptic_categ_list
 
 def prepare_gspan_graph_data(freq_graphs_output_path, graphs):
     """
@@ -28,7 +27,33 @@ def prepare_gspan_graph_data(freq_graphs_output_path, graphs):
             f.write(json_graph_to_gspan(g, conv_coco_category, conv_pos_category))
         f.write("t # -1")
 
-def _read_graphs(file_name, ):
+def run_gspan_mining(graphs_data_path, minsup, output_path):
+    """
+    Run gspan mining to extract frequent graphs
+    GSpan, c implementation (https://www.researchgate.net/publication/296573357_gSpan_Implementation,
+    https://sites.cs.ucsb.edu/~xyan/software/gSpan.htm
+    Paper: gSpan: graph-based substructure pattern mining (ICDM 2003),)
+    :param graphs_data_path: input file, generated with prepare_gspan_graph_data()
+    :param minsup: relative minsup for frequent graphs
+    :param output_path: output json file with frequent graphs
+    """
+    print("Gspan - Mining frequent graphs...")
+    os.system(f"./semantic_analysis/gspan_mining/gSpan-64 -f {graphs_data_path} -s {minsup} -o")
+    print("Mining complete. Converting graphs...")
+    print(graphs_data_path)
+    freq_graphs = __read_gspan_output(f'{graphs_data_path}.fp')
+    with open(output_path, 'w') as f:
+        f.write(json.dumps(freq_graphs))
+    print("Done.")
+    os.remove(f'{graphs_data_path}.fp')
+
+def __read_gspan_output(file_name):
+    """
+    Read gspan output graphs.
+    :param file_name: gspan output file
+    :return: list of dictionaries. 'g': FrequentGraph, 'sup': support
+    """
+
     # Encode panoptic class ids
     # gspan requests as input label values that start from 2.
     coco_categories = load_panoptic_categ_list()
@@ -81,30 +106,4 @@ def _read_graphs(file_name, ):
             final_graphs.append({'g': res_graph, 'sup': sup})
 
         return final_graphs
-
-
-
-def gspan_to_final_graphs(gspan_graphs):
-    """
-    Convert the output of GSpan to final knowledge base graphs.
-
-    ----
-    :param gspan_graphs: output of Gspan
-    :return: list of dictionaries. 'g': FrequentGraph, 'sup': support
-    """
-    # Encode panoptic class ids
-    # gspan requests as input label values that start from 2.
-    coco_categories = load_panoptic_categ_list()
-    conv_coco_category = {i + 2: c for i, c in enumerate(coco_categories.values())}
-
-    # Encode position labels
-    position_labels = tuple(s.strip() for s in open(position_labels_csv_path).readlines())
-    conv_pos_category = {i + 2: c for i, c in enumerate(position_labels)}
-
-    final_graphs = []
-    for g, sup in gspan_graphs:
-        res_graph = nx_to_json(g.to_nx_COCO_graph(conv_coco_category, conv_pos_category))
-        final_graphs.append({'g' : res_graph, 'sup' : sup})
-
-    return final_graphs
 

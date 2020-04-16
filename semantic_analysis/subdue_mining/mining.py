@@ -21,7 +21,7 @@ def prepare_subdue_graph_data(freq_graphs_output_path, graphs):
 
     # Prepare nodes with the correct format for graph gspan_mining
     with open(freq_graphs_output_path, 'w') as f:
-        for g_index, g in enumerate(graphs[:100]):
+        for g_index, g in enumerate(graphs):
             if len(g['links'])>0:
                 f.write(f"\nXP\n")
                 f.write(json_graph_to_subdue(g, conv_coco_category, conv_pos_category))
@@ -37,7 +37,7 @@ def run_subdue_mining(graphs_data_path, nsubs, output_path):
     :param output_path: output json file with frequent graphs
     """
     print("Subdue - Mining best substuctures...")
-    os.system(f"./semantic_analysis/subdue_mining/subdue -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
+    os.system(f"./semantic_analysis/subdue_mining/subdue -minsize 2 -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
     print("Mining complete. Converting graphs...")
     print(graphs_data_path)
     freq_graphs = __read_subdue_output(output_path+'.txt')

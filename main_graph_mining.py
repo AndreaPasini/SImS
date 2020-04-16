@@ -13,6 +13,7 @@ from semantic_analysis.gspan_mining.mining import run_gspan_mining, prepare_gspa
 from config import freq_train_graphs_path, train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir
 import json
 import os
+import sys
 
 ### Choose an action ###
 action = 'GRAPH_MINING'
@@ -77,11 +78,16 @@ def main():
                    ]
 
     if action=='GRAPH_MINING':
-        for i in [2,3]:
-            start_time = datetime.now()
-            graph_mining(experiments[i])
-            end_time = datetime.now()
-            print('Duration: ' + str(end_time - start_time))
+        #for i in [2,3]:
+        if len(sys.argv)<2:
+            exp = 2
+        else:
+            exp = sys.argv[1]
+            print(f"Selected experiment: {experiments[exp]}")
+        start_time = datetime.now()
+        graph_mining(experiments[exp])
+        end_time = datetime.now()
+        print('Duration: ' + str(end_time - start_time))
     elif action=='PRINT_GRAPHS':
         with open(freq_train_graphs_path, 'r') as f:
             graphs = json.load(f)

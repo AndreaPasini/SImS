@@ -82,7 +82,7 @@ def main():
         if len(sys.argv)<2:
             exp = 2
         else:
-            exp = sys.argv[1]
+            exp = int(sys.argv[1])
             print(f"Selected experiment: {experiments[exp]}")
         start_time = datetime.now()
         graph_mining(experiments[exp])

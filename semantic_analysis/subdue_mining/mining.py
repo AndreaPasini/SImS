@@ -3,8 +3,8 @@ import json
 import networkx as nx
 from config import position_labels_csv_path
 from panopticapi.utils import load_panoptic_categ_list
-from semantic_analysis.subdue_mining.graph_utils import json_graph_to_subdue, nx_to_json
-
+from semantic_analysis.subdue_mining.graph_utils import json_graph_to_subdue
+from semantic_analysis.graph_utils import nx_to_json
 
 def prepare_subdue_graph_data(freq_graphs_output_path, graphs):
     """

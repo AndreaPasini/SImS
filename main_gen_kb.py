@@ -31,8 +31,8 @@ Naive_Bayes = False
 class RUN_CONFIG:
     validate_classifiers = False    # Run cross-validation for relative-position classifiers
     build_final_model = False       # Build relative-position classifier, final model
-    generate_train_graphs = False   # Build graphs (object positions) for training images (118,287, may take some hours)
-    generate_val_graphs = True     # Build graphs (object positions) for CNN predictions on validation set  (5,000)
+    generate_train_graphs = True    # Build graphs (object positions) for training images (118,287, may take some hours)
+    generate_val_graphs = False     # Build graphs (object positions) for CNN predictions on validation set  (5,000)
     generate_kb = False             # Generate knowledge base from training graphs: save graphs and histograms
 
     # Choose a model for building the final classifier (used by build_final_model)

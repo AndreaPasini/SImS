@@ -29,7 +29,7 @@ from panopticapi.utils import load_png_annotation
 
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.gspan_mining.graph_utils import nx_to_json
+from semantic_analysis.graph_utils import nx_to_json
 from semantic_analysis.feature_extraction import image2strings, compute_string_positions, get_features
 
 

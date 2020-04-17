@@ -14,7 +14,7 @@ from config import position_classifier_path, COCO_train_json_path, \
     COCO_ann_train_dir, train_graphs_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
     out_panoptic_val_graphs_json_path, out_panoptic_dir, out_panoptic_json_path, kb_clean_pairwise_json_path
 from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, create_kb_graphs
-from semantic_analysis.knowledge_base import create_kb_histograms, clean_kb_histograms
+from semantic_analysis.knowledge_base import create_kb_histograms
 
 ######################
 
@@ -32,7 +32,7 @@ class RUN_CONFIG:
     validate_classifiers = False    # Run cross-validation for relative-position classifiers
     build_final_model = False       # Build relative-position classifier, final model
     generate_train_graphs = False   # Build graphs (object positions) for training images (118,287, may take some hours)
-    generate_val_graphs = False     # Build graphs (object positions) for CNN predictions on validation set  (5,000)
+    generate_val_graphs = True     # Build graphs (object positions) for CNN predictions on validation set  (5,000)
     generate_kb = False             # Generate knowledge base from training graphs: save graphs and histograms
 
     # Choose a model for building the final classifier (used by build_final_model)

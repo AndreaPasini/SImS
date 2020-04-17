@@ -3,14 +3,18 @@ import numpy as np
 import pyximport
 from shutil import copyfile
 from datetime import datetime
+
+
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 
 pyximport.install(language_level=3)
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges
+from semantic_analysis.gspan_mining.graph_utils import json_to_nx
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import run_gspan_mining, prepare_gspan_graph_data
 
-from config import freq_train_graphs_path, train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir
+from config import freq_train_graphs_path, train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir, \
+    out_panoptic_val_graphs_json_path
 import json
 import os
 import sys
@@ -72,14 +76,68 @@ def graph_mining(experiment):
     elif experiment['alg'] == 'subdue':
         run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
 
+def node_match(graph, n1, n2):
+    n1e = graph.edges(n1)
+    n2e = graph.edges(n2)
+    for a in n1e:
+        print(a)
+    x=1
+
+def compress_graphs(graphs):
+    """
+    :return: filtered graphs
+    """
+    stat_avg_nlinks = 0
+    stat_avg_nlinks_filtered = 0
+    pruned_graphs = []
+    for g in graphs:
+        grouped_nodes = {}
+        g_nx = json_to_nx(g)
+
+        for node in g['nodes']:
+            if node['label'] in grouped_nodes:
+                grouped_nodes[node['label']].append(node['id'])
+            else:
+                grouped_nodes[node['label']] = [node['id']]
+        for label, group in grouped_nodes.items():
+            if len(group)>1:
+                x=0
+                while len(group)>1:
+                    a = group.pop()
+                    for b in group.copy():
+                        if node_match(g_nx, a,b):
+                            group.remove(b)
+                            g_nx.remove_node(b)
+
+        #nodes_map = {node['id']: node['label'] for node in g['nodes']}
+        links = []
+
+def compress_graphs_process():
+    # Read KB
+    with open(kb_pairwise_json_path, 'r') as f:
+        kb = json.load(f)
+    # Get support and entropy
+    sup, entr = get_sup_ent_lists(kb)
+    max_entropy = entropy([1 / 3, 1 / 3, 1 / 3])
+    med = np.median(np.log10(sup))
+    min_sup = int(round(10 ** med))
+
+    kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
+
+    with open(out_panoptic_val_graphs_json_path, 'r') as f:
+        train_graphs = json.load(f)
+    train_graphs_filtered = filter_graph_edges(kb_filtered, train_graphs)
+    train_graphs_compressed = compress_graphs(train_graphs_filtered)
 
 def main():
+    compress_graphs_process()
+    return
 
-    experiments = [{'alg':'gspan', 'filter_kb':True, 'minsup':0.1},
-                   {'alg':'gspan', 'filter_kb':True, 'minsup':0.01},
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10},
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100},
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10000}
+    experiments = [{'alg':'gspan', 'filter_kb':True, 'minsup':0.1},#5s
+                   {'alg':'gspan', 'filter_kb':True, 'minsup':0.01},#4h,30m
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10},#12h
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100},#12h
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10000}#
                    ]
 
     if action=='GRAPH_MINING':

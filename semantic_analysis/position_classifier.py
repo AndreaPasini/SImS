@@ -191,7 +191,7 @@ def compute_graph_from_image(image_name, image_id, segments_info, cat_info, anno
     strings = image2strings(img_ann)
     object_ordering = result.index.tolist()
     positions = compute_string_positions(strings, object_ordering)
-    g = nx.Graph()
+    g = nx.DiGraph()
     g.name = image_id
     for id, name in result.iteritems():
         g.add_node(id, label=name)

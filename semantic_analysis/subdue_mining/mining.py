@@ -37,7 +37,7 @@ def run_subdue_mining(graphs_data_path, nsubs, output_path):
     :param output_path: output json file with frequent graphs
     """
     print("Subdue - Mining best substuctures...")
-    os.system(f"./semantic_analysis/subdue_mining/subdue -minsize 2 -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
+    #os.system(f"./semantic_analysis/subdue_mining/subdue -minsize 2 -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
     print("Mining complete. Converting graphs...")
     print(graphs_data_path)
     freq_graphs = __read_subdue_output(output_path+'.txt')
@@ -96,9 +96,9 @@ def __read_subdue_output(file_name):
                 elif cols[0] == 'd':
                     # Edges must be sorted alphabetically to reconstruct directed graph
                     if (node_labels[int(cols[1])] <= node_labels[int(cols[2])]):
-                        cur_graph.add_edge(int(cols[1]), int(cols[2]), label=conv_pos_category[int(cols[3])])
+                        cur_graph.add_edge(int(cols[1]), int(cols[2]), pos=conv_pos_category[int(cols[3])])
                     else:
-                        cur_graph.add_edge(int(cols[2]), int(cols[1]), label=conv_pos_category[int(cols[3])])
+                        cur_graph.add_edge(int(cols[2]), int(cols[1]), pos=conv_pos_category[int(cols[3])])
                 else:
                     # End of graph
                     header_count=0

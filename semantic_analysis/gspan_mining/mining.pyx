@@ -38,7 +38,7 @@ def run_gspan_mining(graphs_data_path, minsup, output_path):
     :param output_path: output json file with frequent graphs
     """
     print("Gspan - Mining frequent graphs...")
-    os.system(f"./semantic_analysis/gspan_mining/gSpan-64 -f {graphs_data_path} -s {minsup} -o")
+    #os.system(f"./semantic_analysis/gspan_mining/gSpan-64 -f {graphs_data_path} -s {minsup} -o")
     print("Mining complete. Converting graphs...")
     print(graphs_data_path)
     freq_graphs = __read_gspan_output(f'{graphs_data_path}.fp')
@@ -90,9 +90,9 @@ def __read_gspan_output(file_name):
                 #tgraph.add_edge(AUTO_EDGE_ID, cols[1], cols[2], cols[3])
                 # Edges must be sorted alphabetically to reconstruct directed graph
                 if (node_labels[int(cols[1])] <= node_labels[int(cols[2])]):
-                    tgraph.add_edge(int(cols[1]), int(cols[2]), label=conv_pos_category[int(cols[3])])
+                    tgraph.add_edge(int(cols[1]), int(cols[2]), pos=conv_pos_category[int(cols[3])])
                 else:
-                    tgraph.add_edge(int(cols[2]), int(cols[1]), label=conv_pos_category[int(cols[3])])
+                    tgraph.add_edge(int(cols[2]), int(cols[1]), pos=conv_pos_category[int(cols[3])])
 
 
         # adapt to input files that do not end with 't # -1'

@@ -1,14 +1,18 @@
-from image_analysis.ImageProcessing import mask_baricenter
+import os
+
+from config import COCO_ann_val_dir, COCO_img_val_dir, COCO_ann_train_dir, COCO_img_train_dir
+from image_analysis.ImageProcessing import mask_baricenter, getImageName
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import cv2
 import seaborn as sns
 import numpy as np
 import pyximport
+
+from panopticapi.utils import load_png_annotation
+
 pyximport.install(language_level=3)
 from semantic_analysis.feature_extraction import extract_bbox_from_mask
-
-
 
 class RelationshipVisualizer:
     """ Class for printing object relationships """
@@ -16,17 +20,26 @@ class RelationshipVisualizer:
     __MIN_AGGREGATION_DIST = 40     # Minimum distance (pixel) for aggregating relationship end-points
     __OBJECT_ALPHA_COLOR = 0.8      # Opacity (0=transparent) of object patches drawn on the image
 
-    def __init__(self, img_annotation, rgb_image, ax):
+    def __init__(self, image_id, ax, is_train_image=True):
         """
         Constructor
-        :param img_annotation: COCO png annotation, read with load_png_annotation()
-        :param rgb_image: RGB image associated to the annotation
+        :param image_id: id of the input COCO image
         :param ax: axes object where the output will be printed
+        :param is_train_image: True if the graph is from COCO Training, otherwise False for Validation set
         """
-        self.__object_centers = {}
-        self.__img_annotation = img_annotation
+        if is_train_image:
+            ann_folder = COCO_ann_train_dir
+            img_folder = COCO_img_train_dir
+        else:
+            ann_folder = COCO_ann_val_dir
+            img_folder = COCO_img_val_dir
+        image_ann_name = getImageName(image_id, ann_folder, 'png')
+        self.__img_annotation = load_png_annotation(image_ann_name)
+        image_file_name = getImageName(image_id, img_folder, 'jpg')
+        rgb_image = cv2.imread(image_file_name)[:, :, ::-1]
         self.__output_image = self.__preprocess_bgr_image(rgb_image)
         self.__ax = ax
+        self.__object_centers = {}
 
     def __preprocess_bgr_image(self, rgb_image):
         # Preprocess bgr image for better visualization
@@ -137,3 +150,21 @@ class RelationshipVisualizer:
                     self.draw_relationship(pos, link['s'], link['r'], mode=1)
         self.__ax.imshow(self.get_output_image())
 
+def filter_graphs_with_local_data(graphs, is_train=True):
+    """
+    Filter out graphs that do not have the image file in the local folder.
+    (=keep only graphs that can be shown with RelationshipVisualizer)
+    :param graphs: list of graphs
+    :param is_train: True if the graph is from COCO Training, otherwise False for Validation set
+    :return: filtered graphs
+    """
+    filtered_graphs = []
+    if is_train:
+        img_folder = COCO_img_train_dir
+    else:
+        img_folder = COCO_img_val_dir
+    for g in graphs:
+        img_file = getImageName(g['graph']['name'], img_folder, 'jpg')
+        if os.path.exists(img_file):
+            filtered_graphs.append(g)
+    return filtered_graphs

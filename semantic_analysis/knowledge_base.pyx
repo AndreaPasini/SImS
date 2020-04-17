@@ -187,3 +187,4 @@ def filter_graph_edges(kb, graphs):
     print(f"Average number of links in pruned graphs: {stat_avg_nlinks_filtered / len(graphs)}")
 
     return pruned_graphs
+

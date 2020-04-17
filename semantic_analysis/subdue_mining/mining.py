@@ -37,7 +37,7 @@ def run_subdue_mining(graphs_data_path, nsubs, output_path):
     :param output_path: output json file with frequent graphs
     """
     print("Subdue - Mining best substuctures...")
-    #os.system(f"./semantic_analysis/subdue_mining/subdue -minsize 2 -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
+    os.system(f"./semantic_analysis/subdue_mining/subdue -minsize 2 -nsubs {nsubs} {graphs_data_path} > {output_path+'.txt'}")
     print("Mining complete. Converting graphs...")
     print(graphs_data_path)
     freq_graphs = __read_subdue_output(output_path+'.txt')

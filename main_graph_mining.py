@@ -78,7 +78,8 @@ def main():
     experiments = [{'alg':'gspan', 'filter_kb':True, 'minsup':0.1},
                    {'alg':'gspan', 'filter_kb':True, 'minsup':0.01},
                    {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10},
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100}
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100},
+                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 1000}
                    ]
 
     if action=='GRAPH_MINING':

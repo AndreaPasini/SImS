@@ -45,7 +45,7 @@ def run_gspan_mining(graphs_data_path, minsup, output_path):
     with open(output_path, 'w') as f:
         f.write(json.dumps(freq_graphs))
     print("Done.")
-    os.remove(f'{graphs_data_path}.fp')
+    #os.remove(f'{graphs_data_path}.fp')
 
 def __read_gspan_output(file_name):
     """

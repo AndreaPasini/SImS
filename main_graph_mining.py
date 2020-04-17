@@ -1,7 +1,7 @@
 from scipy.stats import entropy
 import numpy as np
 import pyximport
-
+from shutil import copyfile
 from datetime import datetime
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 
@@ -64,7 +64,11 @@ def graph_mining(experiment):
 
     # Mining of frequent graphs
     if experiment['alg'] == 'gspan':
-        run_gspan_mining(sel_train_graphs_data_path, experiment['minsup'], sel_freq_graphs_path)
+        # Necessary because gspan program outputs with the same name of the input file
+        tmp_input = os.path.join(graph_mining_dir, exp_name+".data")
+        copyfile(sel_train_graphs_data_path, tmp_input)
+        run_gspan_mining(tmp_input, experiment['minsup'], sel_freq_graphs_path)
+        os.remove(tmp_input)
     elif experiment['alg'] == 'subdue':
         run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
 
@@ -80,7 +84,7 @@ def main():
     if action=='GRAPH_MINING':
         #for i in [2,3]:
         if len(sys.argv)<2:
-            exp = 2
+            exp = 0
         else:
             exp = int(sys.argv[1])
             print(f"Selected experiment: {experiments[exp]}")

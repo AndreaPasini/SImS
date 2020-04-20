@@ -111,7 +111,9 @@ def main():
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.01},  # 2s
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.005},  #
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.001},  #
-                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000}  #
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000},  #
+
+                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': True, 'minsup': 0.01},  # 2s
                    ]
 
     if action=='GRAPH_MINING':
@@ -127,7 +129,7 @@ def main():
         print('Duration: ' + str(end_time - start_time))
     elif action=='PRINT_GRAPHS':
         if len(sys.argv)<2:
-            exp = 4
+            exp = 9
         else:
             exp = int(sys.argv[1])
             print(f"Selected experiment: {experiments[exp]}")
@@ -140,12 +142,15 @@ def main():
             exp_name = f"train_freqGraph{kb_filter}{prune_nodes}_{experiment['alg']}_{experiment['nsubs']}"
         sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
         with open(sel_freq_graphs_path, 'r') as f:
+            out_path = f"../COCO/gmining/charts/{exp_name}"
+            if not os.path.exists(out_path):
+                os.makedirs(out_path)
             graphs = json.load(f)
             i = 0
             for g_dict in graphs:
                 sup = g_dict['sup']
                 g = json_to_nx(g_dict['g'])
-                print_graph_picture(f"../COCO/kb/charts/g{i}.png", g)
+                print_graph_picture(f"{out_path}/g{i}_s_{sup}.png", g)
                 i+=1
 
 

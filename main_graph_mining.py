@@ -22,8 +22,8 @@ import os
 import sys
 
 ### Choose an action ###
-#action = 'GRAPH_MINING'
-action = 'PRINT_GRAPHS'
+action = 'GRAPH_MINING'
+#action = 'PRINT_GRAPHS'
 ########################
 
 

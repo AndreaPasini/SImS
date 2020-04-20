@@ -8,8 +8,10 @@ from datetime import datetime
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 
 pyximport.install(language_level=3)
-from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges
-from semantic_analysis.gspan_mining.graph_utils import json_to_nx
+from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges, \
+    prune_equivalent_nodes
+from semantic_analysis.graph_utils import json_to_nx
+
 pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import run_gspan_mining, prepare_gspan_graph_data
 
@@ -27,12 +29,13 @@ action = 'GRAPH_MINING'
 
 def graph_mining(experiment):
     kb_filter="_kbfilter" if experiment['filter_kb'] else ""
+    prune_nodes = "_prune" if experiment['prune_nodes'] else ""
 
-    sel_train_graphs_data_path = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}_{experiment['alg']}.data")
+    sel_train_graphs_data_path = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}{prune_nodes}_{experiment['alg']}.data")
     if experiment['alg']=='gspan':
-        exp_name = f"train_freqGraph{kb_filter}_{experiment['alg']}_{str(experiment['minsup'])[2:]}"
+        exp_name = f"train_freqGraph{kb_filter}{prune_nodes}_{experiment['alg']}_{str(experiment['minsup'])[2:]}"
     else:
-        exp_name = f"train_freqGraph{kb_filter}_{experiment['alg']}_{experiment['nsubs']}"
+        exp_name = f"train_freqGraph{kb_filter}{prune_nodes}_{experiment['alg']}_{experiment['nsubs']}"
     sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name+'.json')
 
     if not os.path.exists(graph_mining_dir):
@@ -60,6 +63,9 @@ def graph_mining(experiment):
             train_graphs = json.load(f)
         train_graphs_filtered = filter_graph_edges(kb_filtered, train_graphs)
 
+        if experiment['prune_nodes']:
+            train_graphs_filtered = prune_equivalent_nodes(train_graphs_filtered)
+
         if experiment['alg']=='gspan':
             # Convert json graphs to the correct format for gspan mining.
             prepare_gspan_graph_data(sel_train_graphs_data_path, train_graphs_filtered)
@@ -76,42 +82,6 @@ def graph_mining(experiment):
     elif experiment['alg'] == 'subdue':
         run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
 
-def node_match(graph, n1, n2):
-    n1e = graph.edges(n1)
-    n2e = graph.edges(n2)
-    for a in n1e:
-        print(a)
-    x=1
-
-def compress_graphs(graphs):
-    """
-    :return: filtered graphs
-    """
-    stat_avg_nlinks = 0
-    stat_avg_nlinks_filtered = 0
-    pruned_graphs = []
-    for g in graphs:
-        grouped_nodes = {}
-        g_nx = json_to_nx(g)
-
-        for node in g['nodes']:
-            if node['label'] in grouped_nodes:
-                grouped_nodes[node['label']].append(node['id'])
-            else:
-                grouped_nodes[node['label']] = [node['id']]
-        for label, group in grouped_nodes.items():
-            if len(group)>1:
-                x=0
-                while len(group)>1:
-                    a = group.pop()
-                    for b in group.copy():
-                        if node_match(g_nx, a,b):
-                            group.remove(b)
-                            g_nx.remove_node(b)
-
-        #nodes_map = {node['id']: node['label'] for node in g['nodes']}
-        links = []
-
 def compress_graphs_process():
     # Read KB
     with open(kb_pairwise_json_path, 'r') as f:
@@ -124,26 +94,28 @@ def compress_graphs_process():
 
     kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
 
-    with open(out_panoptic_val_graphs_json_path, 'r') as f:
+    with open(train_graphs_json_path, 'r') as f:
         train_graphs = json.load(f)
     train_graphs_filtered = filter_graph_edges(kb_filtered, train_graphs)
-    train_graphs_compressed = compress_graphs(train_graphs_filtered)
+    train_graphs_compressed = prune_equivalent_nodes(train_graphs_filtered)
 
 def main():
-    compress_graphs_process()
-    return
 
-    experiments = [{'alg':'gspan', 'filter_kb':True, 'minsup':0.1},#5s
-                   {'alg':'gspan', 'filter_kb':True, 'minsup':0.01},#4h,30m
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10},#12h
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 100},#12h
-                   {'alg': 'subdue', 'filter_kb': True, 'nsubs': 10000}#
+    experiments = [{'alg':'gspan', 'filter_kb':True, 'prune_nodes':False, 'minsup':0.1},  #5s
+                   {'alg':'gspan', 'filter_kb':True, 'prune_nodes':False, 'minsup':0.01},  #4h,30m
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes':False, 'nsubs': 10},  #12h
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes':False, 'nsubs': 100},  #12h
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes':False, 'nsubs': 10000},  #12h
+
+                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.1},  # 1s
+                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.01},  #
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000}  #
                    ]
 
     if action=='GRAPH_MINING':
         #for i in [2,3]:
         if len(sys.argv)<2:
-            exp = 0
+            exp = 5
         else:
             exp = int(sys.argv[1])
             print(f"Selected experiment: {experiments[exp]}")

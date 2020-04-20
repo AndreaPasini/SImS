@@ -8,6 +8,9 @@ from multiprocessing.pool import Pool
 import pyximport
 from scipy.stats import entropy
 from tqdm import tqdm
+
+from semantic_analysis.graph_utils import json_to_nx, nx_to_json
+
 pyximport.install(language_level=3)
 
 
@@ -188,3 +191,59 @@ def filter_graph_edges(kb, graphs):
 
     return pruned_graphs
 
+def describe_node_edges(graph, node, nodes_map):
+    """
+    Given the node id, describe its inbound and outbound edges with edge and node labels.
+    Can be used to find equivalent objects (that are related in the same way with other objects in the image).
+    :param graph: input graph
+    :param node: id of the node to be described
+    :param nodes_map: map with node_id:node_label
+    :return: a list of tuples - (node_label, edge_label) for inbound, (edge_label, node_label) for outbound edges
+    """
+    inedges = list(graph.in_edges(node, data=True))
+    outedges = list(graph.out_edges(node, data=True))
+    description = [(e[2]['pos'], nodes_map[e[1]]) for e in outedges]
+    description += [(nodes_map[e[0]], e[2]['pos']) for e in inedges]
+    return set(description)
+
+
+def prune_equivalent_nodes(graphs):
+    """
+    Prune graph nodes, when they are equivalent according to describe_node_edges() result.
+    Two equivalent objects are related in the same way with other objects in the image.
+    They can be considered as single object while performing graph mining
+    :param: input json graphs
+    :return: pruned graphs
+    """
+    stat_avg_nnodes = 0
+    stat_avg_nnodes_filtered = 0
+    pruned_graphs = []
+    for g in graphs:
+        grouped_nodes = {}
+        g_nx = json_to_nx(g)
+        nodes_map = {node['id']: node['label'] for node in g['nodes']}
+        # Describe each node with inbound and outbound edges
+        nodes_description = {node['id']: describe_node_edges(g_nx, node['id'], nodes_map) for node in g['nodes']}
+        # Group nodes by class
+        for node in g['nodes']:
+            if node['label'] in grouped_nodes:
+                grouped_nodes[node['label']].append(node['id'])
+            else:
+                grouped_nodes[node['label']] = [node['id']]
+        # For each group of nodes of the same class
+        for label, group in grouped_nodes.items():
+            while len(group)>1: # Do until it contains more than 1 elements (that could be merged)
+                a = group.pop()  # Remove the first element
+                for b in group.copy(): # Compare a with all the other elements
+                    if nodes_description[a]==nodes_description[b]:
+                        # b is equal to a (same inbound and outbound edges), it can be removed
+                        group.remove(b)
+                        g_nx.remove_node(b)
+        pruned_graph = nx_to_json(g_nx)
+        pruned_graphs.append(pruned_graph)
+        stat_avg_nnodes += len(nodes_map)
+        stat_avg_nnodes_filtered += len(pruned_graph['nodes'])
+    print(f"Average number of nodes in graphs: {stat_avg_nnodes / len(graphs)}")
+    print(f"Average number of nodes in pruned graphs: {stat_avg_nnodes_filtered / len(graphs)}")
+    print(f"Number of removed nodes: {stat_avg_nnodes - stat_avg_nnodes_filtered} ({100*(stat_avg_nnodes - stat_avg_nnodes_filtered)/stat_avg_nnodes}%)")
+    return pruned_graphs

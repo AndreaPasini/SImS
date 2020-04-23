@@ -11,50 +11,54 @@ COCO_train_json_path = os.path.join(COCO_dir, 'annotations/panoptic_train2017.js
 COCO_panoptic_cat_info_path = './classes/panoptic_coco_categories.json'
 COCO_panoptic_cat_list_path = './classes/panoptic.csv'
 
-
-
-# Position classifier
+"""
+Position classifier
+"""
 position_dataset_dir = os.path.join(COCO_dir, 'positionDataset/')
 position_dataset_res_dir = os.path.join(position_dataset_dir, 'results/')
-position_classifier_path = os.path.join(position_dataset_res_dir, 'final_model.clf')
-train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
-position_labels_csv_path = os.path.join(position_dataset_dir, 'training/LabelsList.csv')
+position_classifier_path = os.path.join(position_dataset_res_dir, 'final_model.clf')    # Final position classifier
+position_labels_csv_path = os.path.join(position_dataset_dir, 'training/LabelsList.csv')# List of position classes
 
-# Panoptic
+"""
+Panoptic segmentation results (Deeplab + Matterport rcnn)
+"""
 out_panoptic_dir = os.path.join(COCO_dir, 'output/panoptic/')
-out_panoptic_json_path = os.path.join(out_panoptic_dir, 'panoptic.json')
+out_panoptic_json_path = os.path.join(out_panoptic_dir, 'panoptic.json') # Output predictions of panoptic on val set
+pq_info_path = os.path.join(out_panoptic_dir, 'panoptic_quality.json') # Panoptic quality of all objects in predictions
+
+"""
+Scene graphs
+"""
+# Scene graphs of COCO train
+train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
+# Scene graphs of predictions (Deeplab + Matterport rcnn) in COCO val
 out_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
-pq_info_path = os.path.join(out_panoptic_dir, 'panoptic_quality.json')
-##??
-cnn_nodes_links_json_path = os.path.join(position_dataset_res_dir, 'cnn_nodes_links.json')
 
-# Knowledge base
+"""
+Knowledge base
+"""
 kb_dir = os.path.join(COCO_dir, 'kb/')
-kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json')     # Contains the KB extracted from Validation Images (COCO)
-kb_clean_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKBclean.json')
+kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json') # KB extracted from Validation Images (COCO)
 
-
-
-# Anomalies
-anomaly_detection_dir = os.path.join(COCO_dir, 'anomalies/')
-pairanomaly_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly.json')
-pairanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly_kbfilter.json')
-objectanomaly_json_path = os.path.join(anomaly_detection_dir, 'objanomaly.json')
-objectanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'objanomaly_kbfilter.json')
-
-
-charts_anomalies_likelihoods_path = os.path.join(anomaly_detection_dir, 'charts/')
-fp_chart = os.path.join(charts_anomalies_likelihoods_path, 'fp_chart.png')
-tp_chart = os.path.join(charts_anomalies_likelihoods_path, 'tp_chart.png')
-likelihoods_json_path = os.path.join(anomaly_detection_dir, 'val_panoptic_likelihoods.json')
-fp_tp_json_path = os.path.join(anomaly_detection_dir, 'fp_tp_likelihoods.json')
-
-# Graph mining
+"""
+Graph mining
+"""
 graph_mining_dir = kb_dir = os.path.join(COCO_dir, 'gmining/')
-train_graphs_data_kbfilter_path = os.path.join(position_dataset_res_dir, 'train_graphs_kb_filter.data')
-train_graphs_data_path = os.path.join(position_dataset_res_dir, 'train_graphs.data')
+
+"""
+Conceptnet
+"""
+conceptnet_dir = '../ConceptNet'
+conceptnet_full_csv_path = os.path.join(conceptnet_dir, 'conceptnet.csv')
+
+"""
+Anomalies
+"""
+anomaly_detection_dir = os.path.join(COCO_dir, 'anomalies/')
+pairanomaly_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly.json') # Pairwise anomaly detection
+pairanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'pairanomaly_kbfilter.json') # Pairwise anomaly detection
+objectanomaly_json_path = os.path.join(anomaly_detection_dir, 'objanomaly.json') # Object anomaly detection
+objectanomaly_kbfilter_json_path = os.path.join(anomaly_detection_dir, 'objanomaly_kbfilter.json') # Object anomaly detection
 
 
-freq_train_graphs_path = os.path.join(kb_dir, 'train_freqGraph.json')
-freq_train_graphs_kbfilter_path = os.path.join(kb_dir, 'train_freqGraph_kb_filter.json')
 

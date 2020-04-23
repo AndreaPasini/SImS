@@ -1,30 +1,20 @@
 from scipy.stats import entropy
 import numpy as np
-import pyximport
 from shutil import copyfile
 from datetime import datetime
+import pyximport
 pyximport.install(language_level=3)
+
 from semantic_analysis.gspan_mining.graph_utils import print_graph_picture
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
-
-
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges, \
     prune_equivalent_nodes
 from semantic_analysis.graph_utils import json_to_nx
-
-pyximport.install(language_level=3)
 from semantic_analysis.gspan_mining.mining import run_gspan_mining, prepare_gspan_graph_data
-
-from config import freq_train_graphs_path, train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir, \
-    out_panoptic_val_graphs_json_path
+from config import train_graphs_json_path, kb_pairwise_json_path, graph_mining_dir
 import json
 import os
 import sys
-
-### Choose an action ###
-action = 'GRAPH_MINING'
-#action = 'PRINT_GRAPHS'
-########################
 
 
 def graph_mining(experiment):
@@ -82,25 +72,15 @@ def graph_mining(experiment):
     elif experiment['alg'] == 'subdue':
         run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
 
-# def compress_graphs_process():
-#     # Read KB
-#     with open(kb_pairwise_json_path, 'r') as f:
-#         kb = json.load(f)
-#     # Get support and entropy
-#     sup, entr = get_sup_ent_lists(kb)
-#     max_entropy = entropy([1 / 3, 1 / 3, 1 / 3])
-#     med = np.median(np.log10(sup))
-#     min_sup = int(round(10 ** med))
-#
-#     kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
-#
-#     with open(train_graphs_json_path, 'r') as f:
-#         train_graphs = json.load(f)
-#     train_graphs_filtered = filter_graph_edges(kb_filtered, train_graphs)
-#     train_graphs_compressed = prune_equivalent_nodes(train_graphs_filtered)
 
 def main():
+    ### Choose methods to be run ###
+    class RUN_CONFIG:
+        graph_mining = True
+        print_graphs = False
+        experiment = 5 # Index of the experiment configuration to be run (if not specified as command-line argument)
 
+    # Experiment configuration
     experiments = [{'alg':'gspan', 'filter_kb':True, 'prune_nodes':False, 'minsup':0.1},  #5s
                    {'alg':'gspan', 'filter_kb':True, 'prune_nodes':False, 'minsup':0.01},  #4h,30m
                    {'alg': 'subdue', 'filter_kb': True, 'prune_nodes':False, 'nsubs': 10},  #12h
@@ -109,30 +89,26 @@ def main():
 
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.1},  # 1s
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.01},  # 2s
-                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.005},  #
-                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.001},  #
-                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000},  #
+                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.005},  # 3s
+                   {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.001},  # 7s
+                   {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000},  # 17m
 
-                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': True, 'minsup': 0.01},  # 2s
+                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': True, 'minsup': 0.01},  # 12h 36m
                    ]
 
-    if action=='GRAPH_MINING':
-        #for i in [2,3]:
-        if len(sys.argv)<2:
-            exp = 5
-        else:
-            exp = int(sys.argv[1])
-            print(f"Selected experiment: {experiments[exp]}")
+    # Experiment selection
+    if len(sys.argv) < 2:
+        exp = RUN_CONFIG.experiment
+    else:
+        exp = int(sys.argv[1])
+    print(f"Selected experiment: {experiments[exp]}")
+
+    if RUN_CONFIG.graph_mining:
         start_time = datetime.now()
         graph_mining(experiments[exp])
         end_time = datetime.now()
         print('Duration: ' + str(end_time - start_time))
-    elif action=='PRINT_GRAPHS':
-        if len(sys.argv)<2:
-            exp = 9
-        else:
-            exp = int(sys.argv[1])
-            print(f"Selected experiment: {experiments[exp]}")
+    if RUN_CONFIG.print_graphs:
         experiment = experiments[exp]
         kb_filter = "_kbfilter" if experiment['filter_kb'] else ""
         prune_nodes = "_prune" if experiment['prune_nodes'] else ""
@@ -152,10 +128,6 @@ def main():
                 g = json_to_nx(g_dict['g'])
                 print_graph_picture(f"{out_path}/g{i}_s_{sup}.png", g)
                 i+=1
-
-
-
-
 
     ################################## TODO: random walk multiple sullo stesso grafo, poi fare sequence mining #############################
 

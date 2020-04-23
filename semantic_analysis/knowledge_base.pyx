@@ -6,12 +6,13 @@ This file contains functions related to the knowledge base computation and analy
 import json
 from multiprocessing.pool import Pool
 import pyximport
+pyximport.install(language_level=3)
 from scipy.stats import entropy
 from tqdm import tqdm
 
 from semantic_analysis.graph_utils import json_to_nx, nx_to_json
 
-pyximport.install(language_level=3)
+
 
 
 def compute_hist_from_graph(graph):

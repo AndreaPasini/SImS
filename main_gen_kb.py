@@ -3,16 +3,14 @@
  This file provides the code for Semantic Anomaly Detection (SAD) on COCO.
 
 """
-import pyximport
 import os
 from sklearn.ensemble import RandomForestClassifier
-
+import pyximport
 pyximport.install(language_level=3)
-
 from datetime import datetime
 from config import position_classifier_path, COCO_train_json_path, \
     COCO_ann_train_dir, train_graphs_json_path, kb_pairwise_json_path, position_dataset_res_dir, \
-    out_panoptic_val_graphs_json_path, out_panoptic_dir, out_panoptic_json_path, kb_clean_pairwise_json_path
+    out_panoptic_val_graphs_json_path, out_panoptic_dir, out_panoptic_json_path
 from semantic_analysis.position_classifier import validate_classifiers_grid_search, build_final_model, create_kb_graphs
 from semantic_analysis.knowledge_base import create_kb_histograms
 

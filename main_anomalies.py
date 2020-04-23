@@ -10,11 +10,10 @@ from config import out_panoptic_json_path, out_panoptic_dir, \
     objectanomaly_kbfilter_json_path, objectanomaly_json_path, pairanomaly_json_path
 from main_inspection import pq_inspection
 import pyximport
+pyximport.install(language_level=3)
 from tqdm import tqdm
 from panopticapi.utils import rgb2id
 from semantic_analysis.anomaly_detection import inspect_anomalies, inspect_anomalies2
-
-pyximport.install(language_level=3)
 from semantic_analysis.knowledge_base import filter_kb_histograms, get_sup_ent_lists
 from semantic_analysis.position_classifier import create_kb_graphs
 from scipy.stats import entropy

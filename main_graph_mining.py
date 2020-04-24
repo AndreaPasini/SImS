@@ -5,7 +5,7 @@ from datetime import datetime
 import pyximport
 pyximport.install(language_level=3)
 
-from semantic_analysis.gspan_mining.graph_utils import print_graph_picture
+from semantic_analysis.graph_utils import print_graph_picture
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, filter_graph_edges, \
     prune_equivalent_nodes

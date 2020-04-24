@@ -25,9 +25,3 @@ def json_graph_to_gspan(graph, conv_coco_category, conv_pos_category):
     return descr
 
 
-def print_graph_picture(out_path, graph):
-    """ Print networkx graph to file (picture). """
-    A = nx.drawing.nx_agraph.to_agraph(graph)
-    A.node_attr.update(style="filled", fillcolor='#e0f3db')
-    A.layout('dot')
-    A.draw(out_path)

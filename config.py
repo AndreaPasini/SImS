@@ -50,6 +50,7 @@ Conceptnet
 """
 conceptnet_dir = '../ConceptNet'
 conceptnet_full_csv_path = os.path.join(conceptnet_dir, 'conceptnet.csv')
+places_json_path = os.path.join(conceptnet_dir, 'places.json')
 
 """
 Anomalies

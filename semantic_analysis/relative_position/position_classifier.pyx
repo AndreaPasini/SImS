@@ -30,10 +30,10 @@ from panopticapi.utils import load_png_annotation
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.graph_utils import nx_to_json
-from semantic_analysis.feature_extraction import image2strings, compute_string_positions, get_features
+from semantic_analysis.relative_position.feature_extraction import image2strings, compute_string_positions, get_features
 
 
-def getClassifiersGridSearch():
+def __getClassifiersGridSearch():
     """ Return a list of classifiers and parameters for grid-search (validate_classifiers_grid_search) """
     param_knn = {'n_neighbors': [5, 10, 15]}
     param_svc = {'gamma': ['auto']}
@@ -49,14 +49,14 @@ def getClassifiersGridSearch():
     return classifiers
 
 # Utilities for file management
-def removeFile(filePath):
+def __removeFile(filePath):
     if os.path.isfile(filePath):
         os.remove(filePath)
-def inizializePath(path):
+def __inizializePath(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def getClassF1_df(y, y_pred, nameClf, F1_df):
+def __getClassF1_df(y, y_pred, nameClf, F1_df):
     """
     For the given results, return F1 scores, separately for each class.
     Append the results on to given table (dfAccuracy)
@@ -71,7 +71,7 @@ def getClassF1_df(y, y_pred, nameClf, F1_df):
     F1_df = F1_df.append(df_f1)
     return F1_df
 
-def save_confusion_matrix(y, y_pred, clf_name, f1_macro, output_file):
+def __save_confusion_matrix(y, y_pred, clf_name, f1_macro, output_file):
     """
     Print comfusion matrix for the given predictions.
     Save results to file.
@@ -85,16 +85,16 @@ def save_confusion_matrix(y, y_pred, clf_name, f1_macro, output_file):
     conf_mat_df = pd.DataFrame(conf_mat, index=column_names, columns=column_names)
     fig, ax = plt.subplots(figsize=[12,10])
 
-    im, cbar = heatmap(conf_mat_df, column_names, column_names, ax=ax,
-                       cmap="YlGn", cbarlabel=".")
-    annotate_heatmap(im, valfmt="{x:.0f}")
+    im, cbar = __heatmap(conf_mat_df, column_names, column_names, ax=ax,
+                         cmap="YlGn", cbarlabel=".")
+    __annotate_heatmap(im, valfmt="{x:.0f}")
 
     fig.tight_layout()
     plt.title("Confusion Matrix, " + clf_name + '\nmacro-average f1: {0:.3f}'.format(f1_macro))
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     print(conf_mat_df)
-    removeFile(output_file)
+    __removeFile(output_file)
     fig.set_size_inches(13, 10, forward=True)
     plt.savefig(output_file)
 
@@ -106,7 +106,7 @@ def validate_classifiers_grid_search(output_path):
     Write confusion matrices and F1-scores for the best configuration, using leave-one-out
     """
 
-    inizializePath(position_dataset_res_dir)
+    __inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
@@ -115,7 +115,7 @@ def validate_classifiers_grid_search(output_path):
 
     F1_df = pd.DataFrame()  # F1 scores, separately for each class and classifier
     cv = LeaveOneOut()
-    classifiers = getClassifiersGridSearch()
+    classifiers = __getClassifiersGridSearch()
     try:
         for clf_name, clf, params in classifiers:
             print(clf_name)
@@ -128,10 +128,10 @@ def validate_classifiers_grid_search(output_path):
             best_clf = gridSearch.best_estimator_
             # Use leave-one out for printing its final evaluation
             y_pred = cross_val_predict(best_clf, X, y, cv=cv)
-            F1_df = getClassF1_df(y, y_pred, clf_name, F1_df)
+            F1_df = __getClassF1_df(y, y_pred, clf_name, F1_df)
 
             f1_macro = F1_df.tail().mean(axis=1).get(key=clf_name)
-            save_confusion_matrix(y, y_pred, clf_name, f1_macro, os.path.join(position_dataset_res_dir, clf_name + ".eps"))
+            __save_confusion_matrix(y, y_pred, clf_name, f1_macro, os.path.join(position_dataset_res_dir, clf_name + ".eps"))
 
         # Save results to file:
         F1_df['macro-average'] = F1_df.mean(axis=1)
@@ -150,7 +150,7 @@ def build_final_model(output_model_file, final_classifier):
     :param output_model_file: path to output model file (sklearn, pickle)
     :param final_classifier: configured sklearn model to be trained
     """
-    inizializePath(position_dataset_res_dir)
+    __inizializePath(position_dataset_res_dir)
     data = pd.read_csv(pathFeaturesBalanced, sep=';')
     data_img = pd.read_csv(pathGroundTruthBalanced, sep=';')
 
@@ -160,7 +160,7 @@ def build_final_model(output_model_file, final_classifier):
     # Fit model
     final_classifier.fit(X, y)
     # Save model to disk
-    removeFile(output_model_file)
+    __removeFile(output_model_file)
     pickle.dump(final_classifier, open(output_model_file, 'wb'))
 
 def compute_graph_from_image(image_name, image_id, segments_info, cat_info, annot_folder, model):
@@ -268,8 +268,8 @@ def create_kb_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_js
     print("Done")
 
 
-def heatmap(data, row_labels, col_labels, ax=None,
-            cbar_kw={}, cbarlabel="", **kwargs):
+def __heatmap(data, row_labels, col_labels, ax=None,
+              cbar_kw={}, cbarlabel="", **kwargs):
     """
     Create a heatmap from a numpy array and two lists of labels.
 
@@ -329,9 +329,9 @@ def heatmap(data, row_labels, col_labels, ax=None,
     return im, cbar
 
 
-def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
-                     textcolors=["black", "white"],
-                     threshold=None, **textkw):
+def __annotate_heatmap(im, data=None, valfmt="{x:.2f}",
+                       textcolors=["black", "white"],
+                       threshold=None, **textkw):
     """
     A function to annotate a heatmap.
 
@@ -386,39 +386,3 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
             texts.append(text)
 
     return texts
-
-
-# def analyze_image(image_name, segments_info, image_id, cat_info, annot_folder, model, cnnFlag):
-#     try:
-#         catInf = pd.DataFrame(cat_info).T
-#         segInfoDf = pd.DataFrame(segments_info)
-#         merge = pd.concat([segInfoDf.set_index('category_id'), catInf.set_index('id')], axis=1,
-#                           join='inner').set_index('id')
-#
-#         result = merge['name'].sort_values()
-#         img_ann = load_png_annotation(os.path.join(annot_folder, image_name))
-#         strings = image2strings(img_ann)
-#         object_ordering = result.index.tolist()
-#         positions = compute_string_positions(strings, object_ordering)
-#         g = nx.Graph()
-#         hist = {}
-#         g.name = image_id
-#         for id, name in result.iteritems():
-#             g.add_node(id, label=name)
-#         for (s, r), pos in list(positions.items()):
-#             featuresRow = get_features(img_ann, "", s, r, positions)
-#             subject = result[s]
-#             reference = result.loc[r]
-#             prediction = model.predict([np.asarray(featuresRow[3:])])[0]
-#             g.add_edge(s, r, pos=prediction)
-#             if not cnnFlag:
-#                 if (subject, reference) not in hist.keys():
-#                     hist[subject, reference] = {prediction: 1}
-#                 else:
-#                     hist[subject, reference].update({prediction: 0})
-#                     hist[subject, reference][prediction] += 1
-#         return g, hist
-#     except Exception as e:
-#         print('Caught exception in analyze_image:')
-#         traceback.print_exc()
-#         return None

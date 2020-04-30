@@ -3,6 +3,7 @@ import io
 import matplotlib.image as mpimg
 import graphviz
 
+
 def json_to_nx(graph):
     """
     Convert json graph (node-link-data) to Networkx graph.
@@ -15,7 +16,7 @@ def nx_to_json(graph):
     """
     return nx.node_link_data(graph, dict(source='s', target='r', name='id', key='key', link='links'))
 
-def nx_to_graphviz(graph):
+def nx_to_graphviz(graph, weighted_edges=True):
     """
     Convert networkx graph (node-link-data) to Graphviz printable graph
     """
@@ -24,12 +25,17 @@ def nx_to_graphviz(graph):
         if 'label' in n:
             g_viz.node(str(n[0]), label=n['label'])
     for e in graph.edges(data=True):
-        if 'pos' in e[2]:
-            g_viz.edge(str(e[0]), str(e[1]), label=e[2]['pos'])
-        elif 'rel' in e[2]:
-            g_viz.edge(str(e[0]), str(e[1]), label=e[2]['rel'])
+        if 'weight' in e[2] and weighted_edges:
+            weight = e[2]['weight']
         else:
-            g_viz.edge(str(e[0]), str(e[1]))
+            weight = 1
+        if 'pos' in e[2]:
+            g_viz.edge(str(e[0]), str(e[1]), label=e[2]['pos'], weight=str(weight), penwidth=str(weight))
+        elif 'rel' in e[2]:
+            g_viz.edge(str(e[0]), str(e[1]), label=e[2]['rel'], weight=str(weight), penwidth=str(weight))
+        else:
+            g_viz.edge(str(e[0]), str(e[1]), weight=str(weight), penwidth=str(weight))
+
     g_viz.node_attr.update(style="filled", fillcolor='#e0f3db', fontsize="12")
     g_viz.edge_attr.update(fontsize="12")
     g_viz.graph_attr.update(dpi="150")
@@ -64,4 +70,3 @@ def show_graphviz_graph(graph, ax):
     """
     img2 = mpimg.imread(io.BytesIO(graph.pipe(format='png')),format='png')
     ax.imshow(img2,interpolation='spline16')
-

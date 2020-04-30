@@ -1,7 +1,29 @@
 import pandas as pd
-from config import conceptnet_dir
+from config import conceptnet_dir, panoptic_concepts_csv_path
 import os
 import json
+
+def get_coco_concepts_map():
+    """
+    Return mapping COCO class -> concepnet name, for categories like {"window-merged" : "window"}
+    Useful for coco_to_concept() function
+    """
+    with open(panoptic_concepts_csv_path, 'r') as f:
+        concepts_map = {line.split(":")[1]:line.strip().split(":")[2] for line in f.readlines()}
+    return concepts_map
+
+def coco_to_concept(coco_class, coco_concepts_map):
+    """
+    Convert a string with the COCO class to a name suitable for conceptnet
+    Usees conceptnet_map when a conversion is available, otherwise leaves the class as it is
+    Classes with names separated by space are joined with "_" as in Conceptnet
+    :param coco_class: COCO class (string)
+    :param coco_concepts_map: mapping COCO class -> concepnet name, for categories like {"window-merged" : "window"}
+    :return: converted class name
+    """
+    if coco_class in coco_concepts_map.keys():
+        coco_class = coco_concepts_map[coco_class]
+    return coco_class.replace(" ", "_")
 
 def get_readable_concepts(df_conceptnet):
     """
@@ -44,10 +66,10 @@ def create_places_list(output_path):
     meaningful_single = df_place.loc[(df_place[3].isin(single_link_places)) & (df_place[1] == "IsA")][3].value_counts()
     meaningful_places = set(unique_places.index) - set(single_link_places) | set(meaningful_single.index)
     print(f"Places with >1 link or at least 1 'IsA' link: {len(meaningful_places)}")
-    # Manually selected places among the 375 meaningful_places
-    sel_places = ['public_places', 'eating_places', 'burial_place', 'great_place_to_go_jogging', 'resting_place', 'place_to_learn',\
+    # Manually selected places among the 375 meaningful_places (We exclude "place" that is too generic)
+    sel_places = ['place', 'public_places', 'eating_places', 'burial_place', 'great_place_to_go_jogging', 'resting_place', 'place_to_learn',\
      'learning_place', 'ski_place', 'food_place', 'place_with_plants', 'eating_place', 'hiding_place', 'play_place',\
-     'gathering_place', 'place', 'study_place', 'vacation_place', 'living_place', 'big_place', 'flower_place',\
+     'gathering_place', 'study_place', 'vacation_place', 'living_place', 'big_place', 'flower_place',\
      'dwelling_place', 'good_place_to_relax', 'sleeping_place', 'house_place', 'bar_place', 'meeting_places',\
      'meeting_place', 'work_place', 'planting_place', 'cafe_place', 'animal_place', 'natural_places', 'place_in_house',\
      'public_place', 'writing_place', 'place_of_worship', 'worship_place', 'vegetable_place', 'driving_place',\
@@ -66,6 +88,17 @@ def create_places_list(output_path):
         return any(i.isdigit() for i in s)
     sub_places = list(filter(lambda x: (not is_num(x)) and ("'" not in x), sub_places))
     print(f"Obtained sub-places, from IsA relationship: {len(sub_places)}")
+    # Manually select sub-places
+    sub_places = ["living_room", "college", "temple", "school", "restaurant", "kitchen", "library", "desert",\
+                  "sea", "airport", "gym", "pool", "countryside", "deserted_island", "outer_space", "pub", "interior_area",\
+                  "war_zone", "camp", "town", "parking_zone", "mountain", "campsite", "repair_shop", "house", "parks",\
+                  "valley", "stadium", "porch", "department_store", "church", "garden", "city", "university", "beach",\
+                  "chapel", "bar", "basement", "vineyard", "bathroom", "room", "motel", "meadows"]
+    print(f"Manually selected sub-places: {len(sub_places)}")
+    # Manually added places (that do not have relationships with "place")
+    sel_places.extend(["railroad"])
+    # Remove "Place"
+    sel_places.remove("place")
     # Save to json
     places_dict = {'places' : list(sel_places), 'sub-places' : sub_places}
     with open(output_path, 'w') as f:

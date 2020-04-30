@@ -50,7 +50,18 @@ Conceptnet
 """
 conceptnet_dir = '../ConceptNet'
 conceptnet_full_csv_path = os.path.join(conceptnet_dir, 'conceptnet.csv')
+conceptnet_coco_places_csv_path = os.path.join(conceptnet_dir, "conceptnet_coco_places.csv")
 places_json_path = os.path.join(conceptnet_dir, 'places.json')
+panoptic_concepts_csv_path = './classes/panoptic_conceptnet.csv'
+
+"""
+Graph clustering
+"""
+graph_clustering_dir = os.path.join(COCO_dir, 'gclustering/')
+trainimage_freqgraph_csv_path = os.path.join(graph_clustering_dir,"trainimage_freqgraph.csv")   # Count matrix images->freq graphs
+freqgraph_place_csv_path = os.path.join(graph_clustering_dir,"freqgraph_place.csv")  # Count matrix freq graphs -> conceptnet places
+
+
 
 """
 Anomalies

@@ -10,7 +10,7 @@ import numpy as np
 import pyximport
 pyximport.install(language_level=3)
 from panopticapi.utils import load_png_annotation
-from semantic_analysis.feature_extraction import extract_bbox_from_mask
+from semantic_analysis.relative_position.feature_extraction import extract_bbox_from_mask
 
 class RelationshipVisualizer:
     """ Class for printing object relationships """

@@ -19,7 +19,7 @@ from panopticapi.utils import load_png_annotation
 
 import pyximport
 pyximport.install(language_level=3)
-from semantic_analysis.feature_extraction import image2strings, compute_string_positions, get_features, extract_bbox_from_mask
+from semantic_analysis.relative_position.feature_extraction import image2strings, compute_string_positions, get_features
 
 from sklearn.utils import shuffle
 from collections import defaultdict

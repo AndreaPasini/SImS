@@ -60,6 +60,7 @@ Graph clustering
 graph_clustering_dir = os.path.join(COCO_dir, 'gclustering/')
 trainimage_freqgraph_csv_path = os.path.join(graph_clustering_dir,"trainimage_freqgraph.csv")   # Count matrix images->freq graphs
 freqgraph_place_csv_path = os.path.join(graph_clustering_dir,"freqgraph_place.csv")  # Count matrix freq graphs -> conceptnet places
+trainimage_place_csv_path = os.path.join(graph_clustering_dir,"trainimage_place.csv")  # Count matrix train image -> conceptnet places
 
 
 

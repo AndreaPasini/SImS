@@ -6,7 +6,7 @@ import pandas as pd
 from networkx.algorithms.isomorphism import categorical_node_match, categorical_edge_match, DiGraphMatcher
 from tqdm import tqdm
 
-from config import graph_mining_dir, trainimage_freqgraph_csv_path, freqgraph_place_csv_path
+from config import graph_mining_dir, trainimage_freqgraph_csv_path, freqgraph_place_csv_path, trainimage_place_csv_path
 from semantic_analysis.conceptnet.places import Conceptnet
 from semantic_analysis.graph_mining import prepare_graphs_with_KB, get_exp_name
 from semantic_analysis.graph_utils import json_to_nx
@@ -42,7 +42,6 @@ def get_isomorphism_count_vect(graph, freq_graphs):
             cvector[i] += len(match_list)
     return cvector
 
-
 def compute_image_freqgraph_count_mat(experiment):
     """
     Given a graph mining experiment configuration, associate training COCO images to frequent graphs.
@@ -64,8 +63,7 @@ def compute_image_freqgraph_count_mat(experiment):
         pbar.update()
     pbar.close()
     cmatrix = pd.DataFrame(cmatrix)
-    cmatrix.to_csv(trainimage_freqgraph_csv_path,sep=",")
-
+    cmatrix.to_csv(trainimage_freqgraph_csv_path, sep=",", index=False)
 
 def compute_freqgraph_place_count_mat(experiment):
     """
@@ -80,7 +78,7 @@ def compute_freqgraph_place_count_mat(experiment):
         freq_graphs = json.load(f)
     # Read conceptnet
     conceptnet = Conceptnet()
-    fmatrix = []
+    cmatrix = []
     places_map = {place:i for i,place in enumerate(conceptnet.places)}
     # For each frequent graph
     for fgraph in freq_graphs:
@@ -89,6 +87,28 @@ def compute_freqgraph_place_count_mat(experiment):
         rank = conceptnet.rank_related_places(fgraph['g'])
         for place, w in rank:
             cvector[places_map[place]]=w
-        fmatrix.append(cvector)
-    fmatrix= pd.DataFrame(fmatrix)
-    fmatrix.to_csv(freqgraph_place_csv_path,sep=",")
+        cmatrix.append(cvector)
+    cmatrix= pd.DataFrame(cmatrix, columns=conceptnet.places)
+    cmatrix.to_csv(freqgraph_place_csv_path, sep=",", index=False)
+
+def compute_image_place_count_mat():
+    """
+    Associate COCO training images to places.
+    Requires running compute_image_freqgraph_count_mat() and compute_freqgraph_place_count_mat() first
+    Result is a count matrix saved to a csv file (1 row for each image, 1 column for each conceptnet place)
+    """
+    # Read count matrices
+    freqg_place = pd.read_csv(freqgraph_place_csv_path)
+    img_freqg = pd.read_csv(trainimage_freqgraph_csv_path)
+    cmatrix = []
+    pbar = tqdm(total=len(img_freqg))
+    for img_row in img_freqg.iterrows():
+        cvector = np.zeros(freqg_place.shape[1])
+        for i, fgraph in enumerate(img_row[1]):
+            if fgraph>0:
+                cvector += freqg_place.iloc[i].to_numpy()
+        cmatrix.append(cvector)
+        pbar.update()
+    pbar.close()
+    cmatrix = pd.DataFrame(cmatrix, columns=freqg_place.columns)
+    cmatrix.to_csv(trainimage_place_csv_path, sep=",", index=False)

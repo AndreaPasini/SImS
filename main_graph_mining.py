@@ -2,16 +2,18 @@
 Author: Andrea Pasini
 This file provides the code for TODO
 """
+import io
 from datetime import datetime
 import pyximport
 pyximport.install(language_level=3)
 from semantic_analysis.conceptnet.places import Conceptnet
-from semantic_analysis.graph_clustering import compute_image_freqgraph_count_mat, compute_freqgraph_place_count_mat
+from semantic_analysis.graph_clustering import compute_image_freqgraph_count_mat, compute_freqgraph_place_count_mat, \
+    compute_image_place_count_mat
 from semantic_analysis.graph_mining import run_graph_mining
 
 
 
-from semantic_analysis.graph_utils import print_graph_picture
+from semantic_analysis.graph_utils import print_graph_picture, json_to_graphviz
 from semantic_analysis.graph_utils import json_to_nx
 from config import graph_mining_dir
 import json
@@ -22,13 +24,14 @@ import sys
 def main():
     ### Choose methods to be run ###
     class RUN_CONFIG:
-        graph_mining = False            # Mining of frequent graphs with Gspan or Subdue (may take minutes or hours)
-        compute_image_freqgraph_count_mat = True   # Associate training COCO images to frequent graphs (7 minutes)
-        compute_freqgraph_place_count_mat = False  # Associate frequent graphs to places
+        graph_mining = True            # Mining of frequent graphs with Gspan or Subdue (may take minutes or hours)
+        compute_image_freqgraph_count_mat = False   # Associate training COCO images to frequent graphs (7 minutes)
+        compute_freqgraph_place_count_mat = False   # Associate frequent graphs to places
+        compute_image_place_count_mat = False    # Associate training COCO images to places
 
         associate_to_freq_graphs = False
         print_graphs = False
-        experiment = 7 # Index of the experiment configuration to be run (if not specified as command-line argument)
+        experiment = 11 # Index of the experiment configuration to be run (if not specified as command-line argument)
 
     # Experiment configuration
     experiments = [{'alg':'gspan', 'filter_kb':True, 'prune_nodes':False, 'minsup':0.1},  #0) 5s
@@ -42,7 +45,8 @@ def main():
                    {'alg': 'gspan', 'filter_kb': True, 'prune_nodes': True, 'minsup': 0.001},  #8) 7s
                    {'alg': 'subdue', 'filter_kb': True, 'prune_nodes': True, 'nsubs': 10000},  #9) 17m
 
-                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': True, 'minsup': 0.01},  # 12h 36m
+                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': True, 'minsup': 0.01},  # 10) 12h 36m
+                   {'alg': 'gspan', 'filter_kb': False, 'prune_nodes': False, 'minsup': 0.01},  # 11) 12h 36m
                    ]
 
     # Experiment selection
@@ -69,7 +73,11 @@ def main():
         end_time = datetime.now()
         print('Duration: ' + str(end_time - start_time))
 
-
+    if RUN_CONFIG.compute_image_place_count_mat:
+        start_time = datetime.now()
+        compute_image_place_count_mat()
+        end_time = datetime.now()
+        print('Duration: ' + str(end_time - start_time))
 
 
 
@@ -108,8 +116,13 @@ def main():
             i = 0
             for g_dict in graphs:
                 sup = g_dict['sup']
-                g = json_to_nx(g_dict['g'])
-                print_graph_picture(f"{out_path}/g{i}_s_{sup}.png", g)
+                #g = json_to_nx(g_dict['g'])
+                g = json_to_graphviz(g_dict['g'])
+                #g.render(f"{out_path}/g{i}_s_{sup}.png", format='png')
+                with open(f"{out_path}/g{i}_s_{sup}.png", "wb") as f:
+                    #f.write(bytesio_object.getbuffer())
+                    f.write(g.pipe(format='png'))
+                #print_graph_picture(f"{out_path}/g{i}_s_{sup}.png", g)
                 i+=1
 
     ################################## TODO: random walk multiple sullo stesso grafo, poi fare sequence mining #############################

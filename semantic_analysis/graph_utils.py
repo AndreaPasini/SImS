@@ -41,24 +41,27 @@ def nx_to_graphviz(graph, weighted_edges=True):
     g_viz.graph_attr.update(dpi="150")
     return g_viz
 
-def json_to_graphviz(graph):
+def json_to_graphviz(graph, fontsize=16, fillcolor="#d4eaff"):
     """
     Convert json graph (node-link-data) to Graphviz printable graph
+    :param graph: json graph to be converted
+    :param fontsize: in pt, text size for nodes and edges
+    :param fillcolor: string with hex color to fill nodes
     """
     g_viz = graphviz.Digraph()
     for n in graph['nodes']:
         g_viz.node(str(n['id']), label=n['label'])
     for l in graph['links']:
         g_viz.edge(str(l['s']), str(l['r']), label=l['pos'])
-    g_viz.node_attr.update(style="filled", fillcolor='#e0f3db', fontsize="12")
-    g_viz.edge_attr.update(fontsize="12")
-    g_viz.graph_attr.update(dpi="150")
+    g_viz.node_attr.update(style="filled", fillcolor=fillcolor, fontsize=str(fontsize))
+    g_viz.edge_attr.update(fontsize=str(fontsize))
+    g_viz.graph_attr.update(dpi="150", margin="0")
     return g_viz
 
 def print_graph_picture(out_path, graph):
     """ Print networkx graph to file (picture). """
     A = nx.drawing.nx_agraph.to_agraph(graph)
-    A.node_attr.update(style="filled", fillcolor='#e0f3db')
+    A.node_attr.update(style="filled", fillcolor='#d4eaff')
     A.layout('dot')
     A.draw(out_path)
 

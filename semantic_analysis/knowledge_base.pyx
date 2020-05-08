@@ -150,12 +150,12 @@ def get_sup_ent_lists(kb):
     return sup, ent
 
 
-def filter_graph_edges(kb, graphs):
+def prune_graph_edges(kb, graphs):
     """
     Prune graph edges, when they are not present in the knowledge base
     :param kb: knowledge base (read from json)
     :param graphs: list of json graphs
-    :return: filtered graphs
+    :return: pruned graphs
     """
     stat_avg_nlinks = 0
     stat_avg_nlinks_filtered = 0

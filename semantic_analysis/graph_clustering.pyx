@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from config import graph_mining_dir, trainimage_freqgraph_csv_path, freqgraph_place_csv_path, trainimage_place_csv_path
 from semantic_analysis.conceptnet.places import Conceptnet
-from semantic_analysis.graph_mining import prepare_graphs_with_KB, get_exp_name
+from semantic_analysis.graph_mining import prepare_graphs_with_KB, get_exp_name, read_freqgraphs
 from semantic_analysis.graph_utils import json_to_nx
 
 def subgraph_isomorphism(subgraph, graph):
@@ -50,11 +50,8 @@ def compute_image_freqgraph_count_mat(experiment):
     """
     # Read training graphs
     train_graphs_filtered = prepare_graphs_with_KB(experiment)
-    exp_name = get_exp_name(experiment)
     # Read frequent graphs
-    freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
-    with open(freq_graphs_path, 'r') as f:
-        freq_graphs = json.load(f)
+    freq_graphs = read_freqgraphs(experiment)
     pbar = tqdm(total=len(train_graphs_filtered))
     cmatrix = []
     # Subgraph isomorphism to match frequent graphs with COCO train graphs
@@ -71,11 +68,8 @@ def compute_freqgraph_place_count_mat(experiment):
     Result is a count matrix saved to a csv file (1 row for each freq graph, 1 column for each conceptnet place)
     :param experiment: experiment configuration (dictionary)
     """
-    exp_name = get_exp_name(experiment)
     # Read frequent graphs
-    freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
-    with open(freq_graphs_path, 'r') as f:
-        freq_graphs = json.load(f)
+    freq_graphs = read_freqgraphs(experiment)
     # Read conceptnet
     conceptnet = Conceptnet()
     cmatrix = []

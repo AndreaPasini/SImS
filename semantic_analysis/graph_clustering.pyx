@@ -6,7 +6,7 @@ import pandas as pd
 from networkx.algorithms.isomorphism import categorical_node_match, categorical_edge_match, DiGraphMatcher
 from tqdm import tqdm
 
-from config import graph_mining_dir, trainimage_freqgraph_csv_path, freqgraph_place_csv_path, trainimage_place_csv_path
+from config import trainimage_freqgraph_csv_path, freqgraph_place_csv_path, trainimage_place_csv_path
 from semantic_analysis.conceptnet.places import Conceptnet
 from semantic_analysis.graph_mining import prepare_graphs_with_KB, get_exp_name, read_freqgraphs
 from semantic_analysis.graph_utils import json_to_nx

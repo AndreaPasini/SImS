@@ -10,6 +10,11 @@ COCO_ann_train_dir = os.path.join(COCO_dir, 'annotations/panoptic_train2017/')
 COCO_train_json_path = os.path.join(COCO_dir, 'annotations/panoptic_train2017.json')
 COCO_panoptic_cat_info_path = './classes/panoptic_coco_categories.json'
 COCO_panoptic_cat_list_path = './classes/panoptic.csv'
+# Visual Genome (subset)
+VG_dir = '../VGenome'
+VG_train_json_path = os.path.join(VG_dir, 'annotations_train.json')
+VG_predicates_json_path = os.path.join(VG_dir, "predicates.json")
+VG_objects_json_path = os.path.join(VG_dir, "objects.json")
 
 """
 Position classifier
@@ -33,18 +38,22 @@ Scene graphs
 train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
 # Scene graphs of predictions (Deeplab + Matterport rcnn) in COCO val
 out_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
+# Scene graphs of VG train
+VG_train_graphs_json_path = os.path.join(VG_dir, 'train_graphs.json')
 
 """
 Knowledge base
 """
 kb_dir = os.path.join(COCO_dir, 'kb/')
-kb_pairwise_json_path = os.path.join(kb_dir, 'pairwiseKB.json') # KB extracted from Validation Images (COCO)
+VG_kb_dir = os.path.join(VG_dir, 'kb/')
+kb_pairwise_json_path = os.path.join(kb_dir, 'PRKB.json') # KB extracted from Validation Images (COCO)
+VG_kb_pairwise_json_path = os.path.join(VG_kb_dir, 'PRKB.json') # PRKB extracted from VG train
 
 """
 Graph mining
 """
-graph_mining_dir = kb_dir = os.path.join(COCO_dir, 'gmining/')
-
+COCO_graph_mining_dir = os.path.join(COCO_dir, 'gmining')
+VG_graph_mining_dir = os.path.join(VG_dir, 'gmining')
 """
 Conceptnet
 """

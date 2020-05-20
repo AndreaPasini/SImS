@@ -4,7 +4,7 @@ This file provides the code for extracting relevant subsets from ConceptNet data
 """
 import os
 import json
-from config import conceptnet_full_csv_path, conceptnet_dir, places_json_path, graph_mining_dir, \
+from config import conceptnet_full_csv_path, conceptnet_dir, places_json_path, \
     conceptnet_coco_places_csv_path
 from panopticapi.utils import load_panoptic_category_info
 from pyspark import SparkContext, SQLContext

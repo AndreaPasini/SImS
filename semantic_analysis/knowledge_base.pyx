@@ -9,7 +9,6 @@ import pyximport
 pyximport.install(language_level=3)
 from scipy.stats import entropy
 from tqdm import tqdm
-
 from semantic_analysis.graph_utils import json_to_nx, nx_to_json
 
 

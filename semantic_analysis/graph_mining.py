@@ -3,13 +3,16 @@ import os
 from shutil import copyfile
 import numpy as np
 from scipy.stats import entropy
-from config import graph_mining_dir, kb_pairwise_json_path, train_graphs_json_path
+from config import kb_pairwise_json_path, train_graphs_json_path, VG_graph_mining_dir, \
+    COCO_graph_mining_dir, VG_kb_pairwise_json_path, VG_train_graphs_json_path, position_labels_csv_path, \
+    VG_predicates_json_path, VG_objects_json_path
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, prune_graph_edges, \
     prune_equivalent_nodes
 
 from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, run_gspan_mining
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 
+from panopticapi.utils import load_panoptic_categ_list
 from semantic_analysis.graph_utils import json_to_graphviz
 
 
@@ -30,29 +33,44 @@ def get_exp_name(experiment):
 
 def prepare_graphs_with_KB(experiment):
     """
-    Given experiment configuration, return training COCO graphs, pruned and filtered according to KB
+    Given experiment configuration, return graphs, pruned and filtered according to KB
+    Experiment may refer to either COCO or VG dataset.
     :param experiment: experiment configuration (dictionary)
     """
+    if experiment['dataset'] == 'COCO':
+        graph_mining_dir = COCO_graph_mining_dir
+        kb_json_path = kb_pairwise_json_path
+        graphs_json_path = train_graphs_json_path
+    elif experiment['dataset'] == 'VG':
+        graph_mining_dir = VG_graph_mining_dir
+        kb_json_path = VG_kb_pairwise_json_path
+        graphs_json_path = VG_train_graphs_json_path
+        min_sup = 20
+
     kb_filter="_kbfilter" if experiment['edge_pruning'] else ""
     node_pruning = "_prune" if experiment['node_pruning'] else ""
     output_file = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}.json")
     # Check whether graph data has already been created
     if not os.path.exists(output_file):
         # Read KB
-        with open(kb_pairwise_json_path, 'r') as f:
+        with open(kb_json_path, 'r') as f:
             kb = json.load(f)
         # Get support and entropy
         sup, entr = get_sup_ent_lists(kb)
         max_entropy = entropy([1 / 3, 1 / 3, 1 / 3])
         med = np.median(np.log10(sup))
-        min_sup = int(round(10 ** med))
+
+        # Set minsup to median, if COCO dataset
+        if experiment['dataset']=='COCO':
+            min_sup = int(round(10 ** med))
+
         # Filter KB
         if experiment['edge_pruning']:
             kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
         else:
             kb_filtered = filter_kb_histograms(kb, min_sup, 100)  # No filter for entropy
         # Read COCO Train graphs
-        with open(train_graphs_json_path, 'r') as f:
+        with open(graphs_json_path, 'r') as f:
             train_graphs = json.load(f)
         # Edge pruning: filter graphs with KB
         print("Filtering graphs with KB...")
@@ -77,6 +95,19 @@ def run_graph_mining(experiment):
     kb_filter="_kbfilter" if experiment['edge_pruning'] else ""
     node_pruning = "_prune" if experiment['node_pruning'] else ""
 
+    if experiment['dataset'] == 'COCO':
+        graph_mining_dir = COCO_graph_mining_dir
+        obj_categories = load_panoptic_categ_list()
+        with open(position_labels_csv_path) as f:
+            rel_categories = tuple(s.strip() for s in f.readlines())
+    elif experiment['dataset'] == 'VG':
+        graph_mining_dir = VG_graph_mining_dir
+        with open(VG_objects_json_path) as f:
+            obj_categories = {i: l for i, l in enumerate(json.load(f))}
+        with open(VG_predicates_json_path) as f:
+            rel_categories = json.load(f)
+
+
     sel_train_graphs_data_path = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}_{experiment['alg']}.data")
     exp_name = get_exp_name(experiment)
     sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name+'.json')
@@ -88,21 +119,22 @@ def run_graph_mining(experiment):
     if not os.path.exists(sel_train_graphs_data_path):
         print(f"Preparing graphs for {experiment['alg']}...")
         train_graphs_filtered = prepare_graphs_with_KB(experiment)
+
         if experiment['alg']=='gspan':
             # Convert json graphs to the correct format for gspan mining.
-            prepare_gspan_graph_data(sel_train_graphs_data_path, train_graphs_filtered)
+            prepare_gspan_graph_data(sel_train_graphs_data_path, train_graphs_filtered, obj_categories, rel_categories)
         elif experiment['alg']=='subdue':
-            prepare_subdue_graph_data(sel_train_graphs_data_path, train_graphs_filtered)
+            prepare_subdue_graph_data(sel_train_graphs_data_path, train_graphs_filtered, obj_categories, rel_categories)
 
     # Mining of frequent graphs
     if experiment['alg'] == 'gspan':
         # Necessary because gspan program outputs with the same name of the input file
         tmp_input = os.path.join(graph_mining_dir, exp_name+".data")
         copyfile(sel_train_graphs_data_path, tmp_input)
-        run_gspan_mining(tmp_input, experiment['minsup'], sel_freq_graphs_path)
+        run_gspan_mining(tmp_input, experiment['minsup'], sel_freq_graphs_path, obj_categories, rel_categories)
         os.remove(tmp_input)
     elif experiment['alg'] == 'subdue':
-        run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path)
+        run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path, obj_categories, rel_categories)
 
 def read_freqgraphs(experiment):
     """
@@ -111,6 +143,12 @@ def read_freqgraphs(experiment):
     :return: loaded json frequent graphs
     """
     exp_name = get_exp_name(experiment)
+
+    if experiment['dataset'] == 'COCO':
+        graph_mining_dir = COCO_graph_mining_dir
+    elif experiment['dataset'] == 'VG':
+        graph_mining_dir = VG_graph_mining_dir
+
     # Read frequent graphs
     freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
     with open(freq_graphs_path, 'r') as f:
@@ -152,13 +190,17 @@ def analyze_graphs(experiment):
         else:
             dist_sets[nodes_tuple] = 1
 
+    if 'minsup' not in experiment:
+        experiment['minsup'] = None
     res_dict = {"Minsup":experiment['minsup'],
                 "Edge pruning": 'Y' if experiment['edge_pruning'] else 'N',
                 "Node pruning": 'Y' if experiment['node_pruning'] else 'N',
                 "N. graphs": len(freq_graphs), "N. distinct classes": len(dist_classes),
-                "N. distinct class sets": len(dist_sets), "Avg. nodes": round(tot_nodes / len(freq_graphs), 2),
+                "N. distinct class sets": len(dist_sets),
+                "Distinct set ratio": round(len(dist_sets)/len(freq_graphs), 3),
+                "Avg. nodes": round(tot_nodes / len(freq_graphs), 2),
                 "Avg. distinct classes": round(tot_dist_nodes / len(freq_graphs),2), "Max. distinct classes": max_dist_nodes,
-                "Distinct class ratio":round(nodes_nodes_dist/len(freq_graphs),2),
+                "Distinct node ratio":round(nodes_nodes_dist/len(freq_graphs),2),
                 "Std. nodes": round(np.std(std_nodes),2)}
     return res_dict
 
@@ -172,6 +214,11 @@ def print_graphs(experiment, subsample=True, pdfformat=True, alternate_colors=Tr
     :param alternate_colors: True if you want to alternate different colors for nodes
     """
     exp_name = get_exp_name(experiment)
+    if experiment['dataset'] == 'COCO':
+        graph_mining_dir = COCO_graph_mining_dir
+    elif experiment['dataset'] == 'VG':
+        graph_mining_dir = VG_graph_mining_dir
+
     # Read
     sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
     with open(sel_freq_graphs_path, 'r') as f:
@@ -191,6 +238,7 @@ def print_graphs(experiment, subsample=True, pdfformat=True, alternate_colors=Tr
 
     fillcolors = ["#d4eaff", "#baf0a8"]
     format = "pdf" if pdfformat else "png"
+
     for i, g_dict in iter_graphs:
         sup = g_dict['sup']
         g = json_to_graphviz(g_dict['g'], fillcolor=fillcolors[0])

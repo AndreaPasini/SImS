@@ -20,7 +20,10 @@ def json_graph_to_gspan(graph, conv_coco_category, conv_pos_category):
         l = conv_pos_category[e['pos']]  # label
         s = vmap[e['s']]  # subject
         r = vmap[e['r']]  # reference
-        descr += f"e {s} {r} {l}\n"
+        if s!=r: # Self loop not allowed in gSpan
+            descr += f"e {s} {r} {l}\n"
+        else:
+            print("Warning: found self loop in graphs.")
 
     return descr
 

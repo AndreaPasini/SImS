@@ -18,12 +18,13 @@ class RelationshipVisualizer:
     __MIN_AGGREGATION_DIST = 40     # Minimum distance (pixel) for aggregating relationship end-points
     __OBJECT_ALPHA_COLOR = 0.8      # Opacity (0=transparent) of object patches drawn on the image
 
-    def __init__(self, image_id, ax, is_train_image=True):
+    def __init__(self, image_id, ax, is_train_image=True, preprocess_image=True):
         """
         Constructor
         :param image_id: id of the input COCO image
         :param ax: axes object where the output will be printed
         :param is_train_image: True if the graph is from COCO Training, otherwise False for Validation set
+        :param preprocess_image: True if you want to change image colors for better visualization
         """
         if is_train_image:
             ann_folder = COCO_ann_train_dir
@@ -35,11 +36,14 @@ class RelationshipVisualizer:
         self.__img_annotation = load_png_annotation(image_ann_name)
         image_file_name = getImageName(image_id, img_folder, 'jpg')
         rgb_image = cv2.imread(image_file_name)[:, :, ::-1]
-        self.__output_image = self.__preprocess_bgr_image(rgb_image)
+        if preprocess_image:
+            self.__output_image = self.__preprocess_rgb_image(rgb_image)
+        else:
+            self.__output_image = rgb_image
         self.__ax = ax
         self.__object_centers = {}
 
-    def __preprocess_bgr_image(self, rgb_image):
+    def __preprocess_rgb_image(self, rgb_image):
         # Preprocess bgr image for better visualization
         img_print = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2HSV)
         v = img_print[:, :, 2]
@@ -63,13 +67,14 @@ class RelationshipVisualizer:
         self.__object_centers[obj_id].append((computed_x, computed_y))
         return computed_x, computed_y
 
-    def draw_relationship(self, pos, sub, ref, mode=1):
+    def draw_relationship(self, pos, sub, ref, mode=1, draw_masks=True):
         """
         Draw to the image a single relationship.
         :param pos: position relationship (e.g. "above")
         :param sub: subject id
         :param ref: reference id
         :param mode: 1 (optimized segment positioning), 2 (base relationhip-line positioning)
+        :param draw_masks: True if you want to draw object masks
         """
         colors = {'side-up': 'black', 'side-down': 'black', 'side': 'black'}
 
@@ -80,11 +85,13 @@ class RelationshipVisualizer:
         # Draw object masks (transparent patch) if not present
         if sub not in self.__object_centers:
             rand_color = self.__OBJECT_ALPHA_COLOR*self.__random_color()
-            self.__output_image[sub_mask] = np.floor(self.__output_image[sub_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
+            if draw_masks:
+                self.__output_image[sub_mask] = np.floor(self.__output_image[sub_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
             self.__object_centers[sub] = []
         if ref not in self.__object_centers:
             rand_color = self.__OBJECT_ALPHA_COLOR*self.__random_color()
-            self.__output_image[ref_mask] = np.floor(self.__output_image[ref_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
+            if draw_masks:
+                self.__output_image[ref_mask] = np.floor(self.__output_image[ref_mask] * (1-self.__OBJECT_ALPHA_COLOR) + rand_color)
             self.__object_centers[ref] = []
 
         # Find subject and reference positions
@@ -125,12 +132,13 @@ class RelationshipVisualizer:
         """
         return self.__output_image
 
-    def draw_positive_relationships(self, graph, kb, thr):
+    def draw_positive_relationships(self, graph, kb, thr, draw_masks):
         """
         Draw on axes: the image with object patches and the set of relationships
         :param graph: graph of this image, with object positions (read from json)
         :param kb: knowledge base (read from json)
         :param thr: confidence threshold for a relationship to be printed
+        :param draw_masks: True if you want to draw object masks
         """
         nodes = {}
         for node in graph['nodes']:
@@ -145,7 +153,7 @@ class RelationshipVisualizer:
                 hist = kb[f"{sub},{ref}"]
                 pal = sns.color_palette("Set3")
                 if hist[pos] > thr: # Threshold for printing a link
-                    self.draw_relationship(pos, link['s'], link['r'], mode=1)
+                    self.draw_relationship(pos, link['s'], link['r'], mode=1, draw_masks=draw_masks)
         self.__ax.imshow(self.get_output_image())
 
 def filter_graphs_with_local_data(graphs, is_train=True):

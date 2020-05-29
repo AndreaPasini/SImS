@@ -40,11 +40,13 @@ def get_BOW(img_names, codebook):
     for i, img_name in enumerate(img_names):    # 34 secondi con 1000 immagini
         img = cv2.imread(os.path.join(COCO_img_train_dir, img_name))
         kps, descs = get_SIFT(img, sift)
-        y = codebook.predict(descs)
         fvect = np.zeros(codebook.n_clusters)
-        unique, counts = np.unique(y, return_counts=True)
-        for u, c in zip(unique, counts):
-            fvect[u]=c/len(descs)
+        if descs is not None and len(descs)>0:
+            y = codebook.predict(descs)
+            unique, counts = np.unique(y, return_counts=True)
+            for u, c in zip(unique, counts):
+                fvect[u]=c/len(descs)
+
         if X is None:
             X = fvect
         else:

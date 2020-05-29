@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 from joblib import dump, load
 import pandas as pd
-
+from datetime import datetime
 competitors_dir = '../COCO/competitors/'
 
 def get_SIFT(img, sift):
@@ -56,21 +56,30 @@ images = os.listdir(COCO_img_train_dir)
 selected = np.random.choice(images, 10000)
 # Computing descriptors
 print("Computing descriptors...")
+start_time = datetime.now()
 X = get_descriptors(selected)
 X.dump(os.path.join(competitors_dir, "sift_descr_collection.np"))
 print("Saved.")
+end_time = datetime.now()
+print('Duration: ' + str(end_time - start_time))
 
 print("Computing codebook with KMeans...")
+start_time = datetime.now()
 X = np.load(os.path.join(competitors_dir, "sift_descr_collection.np"),allow_pickle=True)
 codebook = KMeans(500) # Number of codes
 y = codebook.fit_transform(X)
 dump(codebook, os.path.join(competitors_dir, "sift_codebook.pkl"))
 print("Saved.")
+end_time = datetime.now()
+print('Duration: ' + str(end_time - start_time))
 
 print("Computing feature vectors for all images...")
+start_time = datetime.now()
 codebook = load(os.path.join(competitors_dir, "sift_codebook.pkl"))
 X = get_BOW(images)
 df = pd.DataFrame(X)
 df.to_csv(os.path.join(competitors_dir, "bow_images.np"), index=False)
 X.dump(os.path.join(competitors_dir, "bow_images.np"))
 print("Saved.")
+end_time = datetime.now()
+print('Duration: ' + str(end_time - start_time))

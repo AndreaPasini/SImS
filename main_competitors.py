@@ -54,33 +54,33 @@ def get_BOW(img_names, codebook):
     return X
 
 images = os.listdir(COCO_img_train_dir)
-selected = np.random.choice(images, 10000, replace=False)
-# Computing descriptors
-print("Computing descriptors...")
-start_time = datetime.now()
-X = get_descriptors(selected)
-X.dump(os.path.join(competitors_dir, "sift_descr_collection.np"))
-print("Saved.")
-end_time = datetime.now()
-print('Duration: ' + str(end_time - start_time))
-
-print("Computing codebook with KMeans...")
-start_time = datetime.now()
-X = np.load(os.path.join(competitors_dir, "sift_descr_collection.np"),allow_pickle=True)
-print(f"Initial data: {X.shape[0]}")
-X = X[np.random.choice(X.shape[0], 100000, replace=False), :] # 100K samples
-print(f"Sampled data: {X.shape[0]}")
-codebook = KMeans(500) # Number of codes
-y = codebook.fit_transform(X)
-dump(codebook, os.path.join(competitors_dir, "sift_codebook.pkl"))
-print("Saved.")
-end_time = datetime.now()
-print('Duration: ' + str(end_time - start_time))
+# selected = np.random.choice(images, 10000, replace=False)
+# # Computing descriptors
+# print("Computing descriptors...")
+# start_time = datetime.now()
+# X = get_descriptors(selected)
+# X.dump(os.path.join(competitors_dir, "sift_descr_collection.np"))
+# print("Saved.")
+# end_time = datetime.now()
+# print('Duration: ' + str(end_time - start_time))
+#
+# print("Computing codebook with KMeans...")
+# start_time = datetime.now()
+# X = np.load(os.path.join(competitors_dir, "sift_descr_collection.np"),allow_pickle=True)
+# print(f"Initial data: {X.shape[0]}")
+# X = X[np.random.choice(X.shape[0], 100000, replace=False), :] # 100K samples
+# print(f"Sampled data: {X.shape[0]}")
+# codebook = KMeans(500) # Number of codes
+# y = codebook.fit_transform(X)
+# dump(codebook, os.path.join(competitors_dir, "sift_codebook.pkl"))
+# print("Saved.")
+# end_time = datetime.now()
+# print('Duration: ' + str(end_time - start_time))
 
 print("Computing feature vectors for all images...")
 start_time = datetime.now()
 codebook = load(os.path.join(competitors_dir, "sift_codebook.pkl"))
-X = get_BOW(images)
+X = get_BOW(images, codebook)
 df = pd.DataFrame(X)
 df.to_csv(os.path.join(competitors_dir, "bow_images.np"), index=False)
 X.dump(os.path.join(competitors_dir, "bow_images.np"))

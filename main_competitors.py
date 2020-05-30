@@ -6,6 +6,7 @@ from sklearn.cluster import KMeans
 from joblib import dump, load
 import pandas as pd
 from datetime import datetime
+from pyclustering.cluster.kmedoids import kmedoids
 competitors_dir = '../COCO/competitors/'
 
 def __get_SIFT(img, sift):
@@ -67,7 +68,7 @@ def compute_BOW_descriptors():
     Compute Bag Of Words features for COCO train images
     Each image is described with a normalized histograms that counts the presence of the 500 SIFT descriptors
     """
-    images = os.listdir(COCO_img_train_dir)
+    images = sorted(os.listdir(COCO_img_train_dir))
     selected = np.random.choice(images, 10000, replace=False)
     # Computing descriptors
     print("Computing descriptors...")
@@ -95,8 +96,8 @@ def compute_BOW_descriptors():
     start_time = datetime.now()
     codebook = load(os.path.join(competitors_dir, "sift_codebook.pkl"))
     X = get_BOW(images, codebook)
-    df = pd.DataFrame(X)
-    df.to_csv(os.path.join(competitors_dir, "bow_images.pd"), index=False)
+    df = pd.DataFrame(X, index=images)
+    df.to_csv(os.path.join(competitors_dir, "bow_images.pd"))
     X.dump(os.path.join(competitors_dir, "bow_images.np"))
     print("Saved.")
     end_time = datetime.now()
@@ -104,9 +105,21 @@ def compute_BOW_descriptors():
 
 if __name__ == "__main__":
     # Feature extraction for each image
-    #compute_BOW_descriptors()
-    X = np.load(os.path.join(competitors_dir, "bow_images.np"))
-    df = pd.DataFrame(X)
-    df.to_csv(os.path.join(competitors_dir, "bow_images.pd"), index=False)
-    #X = pd.read_csv(os.path.join(competitors_dir, "bow_images.np"), index_col=False)
-    #print(len(X))
+    compute_BOW_descriptors()
+
+    # Cluster images with kmedoids
+    X = pd.read_csv(os.path.join(competitors_dir, "bow_images.pd"), index_col=False)
+    #X = np.load(os.path.join(competitors_dir, "bow_images.np"))[:10]
+    K = 10
+    km = kmedoids(X.to_numpy(), np.random.randint(0,len(X), K))
+    km.process()
+    med = km.get_medoids()
+    images = []
+    for m in med:
+        img = X.iloc[m].name
+        images.append(img)
+    print(images)
+    with open(os.path.join(competitors_dir, "centroids.txt"),'w') as f:
+        for el in images:
+            f.write(el+",")
+    print(len(X))

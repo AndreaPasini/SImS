@@ -105,15 +105,19 @@ def compute_BOW_descriptors():
 
 if __name__ == "__main__":
     # Feature extraction for each image
-    compute_BOW_descriptors()
+    #compute_BOW_descriptors()
 
     # Cluster images with kmedoids
-    X = pd.read_csv(os.path.join(competitors_dir, "bow_images.pd"), index_col=False)
+    X = pd.read_csv(os.path.join(competitors_dir, "bow_images.pd"), index_col=0)
     #X = np.load(os.path.join(competitors_dir, "bow_images.np"))[:10]
     K = 10
     km = kmedoids(X.to_numpy(), np.random.randint(0,len(X), K))
+    start_time = datetime.now()
     km.process()
     med = km.get_medoids()
+    end_time = datetime.now()
+    print('Done. Duration: ' + str(end_time - start_time))
+
     images = []
     for m in med:
         img = X.iloc[m].name

@@ -2,81 +2,64 @@ import json
 import os
 from shutil import copyfile
 import numpy as np
-from scipy.stats import entropy
-from config import kb_pairwise_json_path, train_graphs_json_path, VG_graph_mining_dir, \
-    COCO_graph_mining_dir, VG_kb_pairwise_json_path, VG_train_graphs_json_path, position_labels_csv_path, \
-    VG_predicates_json_path, VG_objects_json_path
 from semantic_analysis.knowledge_base import get_sup_ent_lists, filter_kb_histograms, prune_graph_edges, \
     prune_equivalent_nodes
 
 from semantic_analysis.gspan_mining.mining import prepare_gspan_graph_data, run_gspan_mining
 from semantic_analysis.subdue_mining.mining import prepare_subdue_graph_data, run_subdue_mining
 
-from panopticapi.utils import load_panoptic_categ_list
 from semantic_analysis.graph_utils import json_to_graphviz
 
 
-def get_exp_name(experiment):
+def get_exp_name(miningConf):
     """
     Get experiment name, given configuration dictionary
     Experiment name can be used for generating its associated files
-    :param experiment: experiment configuration (dictionary)
+    :param miningConf: experimental configuration class
     """
-    kb_filter="_kbfilter" if experiment['edge_pruning'] else ""
-    node_pruning = "_prune" if experiment['node_pruning'] else ""
-    if experiment['alg']=='gspan':
-        exp_name = f"train_freqGraph{kb_filter}{node_pruning}_{experiment['alg']}_{str(experiment['minsup'])[2:]}"
+    config = miningConf.config
+    kb_filter="_kbfilter" if config['edge_pruning'] else ""     # Edge pruning
+    node_pruning = "_prune" if config['node_pruning'] else ""   # Node pruning
+    if config['alg']=='gspan':
+        exp_name = f"train_freqGraph{kb_filter}{node_pruning}_{config['alg']}_{str(config['minsup'])[2:]}"
     else:
-        exp_name = f"train_freqGraph{kb_filter}{node_pruning}_{experiment['alg']}_{experiment['nsubs']}"
+        exp_name = f"train_freqGraph{kb_filter}{node_pruning}_{config['alg']}_{config['nsubs']}"
     return exp_name
 
 
-def prepare_graphs_with_KB(experiment):
+def prepare_graphs_with_KB(miningConf):
     """
     Given experiment configuration, return graphs, pruned and filtered according to KB
     Experiment may refer to either COCO or VG dataset.
-    :param experiment: experiment configuration (dictionary)
+    :param miningConf: experimental configuration class
     """
-    if experiment['dataset'] == 'COCO':
-        graph_mining_dir = COCO_graph_mining_dir
-        kb_json_path = kb_pairwise_json_path
-        graphs_json_path = train_graphs_json_path
-    elif experiment['dataset'] == 'VG':
-        graph_mining_dir = VG_graph_mining_dir
-        kb_json_path = VG_kb_pairwise_json_path
-        graphs_json_path = VG_train_graphs_json_path
-        min_sup = 20
-
-    kb_filter="_kbfilter" if experiment['edge_pruning'] else ""
-    node_pruning = "_prune" if experiment['node_pruning'] else ""
-    output_file = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}.json")
+    config = miningConf.config
+    kb_filter="_kbfilter" if config['edge_pruning'] else ""
+    node_pruning = "_prune" if config['node_pruning'] else ""
+    output_file = os.path.join(miningConf.graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}.json")
     # Check whether graph data has already been created
     if not os.path.exists(output_file):
         # Read KB
-        with open(kb_json_path, 'r') as f:
+        with open(miningConf.kb_json_path, 'r') as f:
             kb = json.load(f)
         # Get support and entropy
         sup, entr = get_sup_ent_lists(kb)
-        max_entropy = entropy([1 / 3, 1 / 3, 1 / 3])
-        med = np.median(np.log10(sup))
-
-        # Set minsup to median, if COCO dataset
-        if experiment['dataset']=='COCO':
-            min_sup = int(round(10 ** med))
+        # Get minsup and maxentr
+        min_sup, max_entropy = miningConf.get_filters(sup, entr)
 
         # Filter KB
-        if experiment['edge_pruning']:
+        if config['edge_pruning']:
             kb_filtered = filter_kb_histograms(kb, min_sup, max_entropy)
         else:
             kb_filtered = filter_kb_histograms(kb, min_sup, 100)  # No filter for entropy
         # Read COCO Train graphs
-        with open(graphs_json_path, 'r') as f:
+        with open(miningConf.graphs_json_path, 'r') as f:
             train_graphs = json.load(f)
         # Edge pruning: filter graphs with KB
         print("Filtering graphs with KB...")
         train_graphs_filtered = prune_graph_edges(kb_filtered, train_graphs)
         # Node pruning (prune equivalent nodes to reduce redundancies and to reduce mining time)
-        if experiment['node_pruning']:
+        if config['node_pruning']:
             print("Pruning nodes...")
             train_graphs_filtered = prune_equivalent_nodes(train_graphs_filtered)
         with open(output_file, "w") as f:
@@ -87,82 +70,68 @@ def prepare_graphs_with_KB(experiment):
             return json.load(f)
 
 
-def run_graph_mining(experiment):
+def run_graph_mining(miningConf):
     """
     Run graph mining experiment
-    :param experiment: experiment configuration (dictionary)
+    :param miningConf: experimental configuration class
     """
-    kb_filter="_kbfilter" if experiment['edge_pruning'] else ""
-    node_pruning = "_prune" if experiment['node_pruning'] else ""
+    config = miningConf.config
+    kb_filter="_kbfilter" if config['edge_pruning'] else ""
+    node_pruning = "_prune" if config['node_pruning'] else ""
 
-    if experiment['dataset'] == 'COCO':
-        graph_mining_dir = COCO_graph_mining_dir
-        obj_categories = load_panoptic_categ_list()
-        with open(position_labels_csv_path) as f:
-            rel_categories = tuple(s.strip() for s in f.readlines())
-    elif experiment['dataset'] == 'VG':
-        graph_mining_dir = VG_graph_mining_dir
-        with open(VG_objects_json_path) as f:
-            obj_categories = {i: l for i, l in enumerate(json.load(f))}
-        with open(VG_predicates_json_path) as f:
-            rel_categories = json.load(f)
+    # Load dataset categories
+    obj_categories, rel_categories = miningConf.load_categories()
 
+    sel_train_graphs_data_path = os.path.join(miningConf.graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}_{config['alg']}.data")
+    exp_name = get_exp_name(miningConf)
+    sel_freq_graphs_path = os.path.join(miningConf.graph_mining_dir, exp_name+'.json')
 
-    sel_train_graphs_data_path = os.path.join(graph_mining_dir, f"train_graphs{kb_filter}{node_pruning}_{experiment['alg']}.data")
-    exp_name = get_exp_name(experiment)
-    sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name+'.json')
-
-    if not os.path.exists(graph_mining_dir):
-        os.makedirs(graph_mining_dir)
+    if not os.path.exists(miningConf.graph_mining_dir):
+        os.makedirs(miningConf.graph_mining_dir)
 
     # Check whether graph data has already been converted for
     if not os.path.exists(sel_train_graphs_data_path):
-        print(f"Preparing graphs for {experiment['alg']}...")
-        train_graphs_filtered = prepare_graphs_with_KB(experiment)
+        print(f"Preparing graphs for {config['alg']}...")
+        train_graphs_filtered = prepare_graphs_with_KB(miningConf)
 
-        if experiment['alg']=='gspan':
+        if config['alg']=='gspan':
             # Convert json graphs to the correct format for gspan mining.
             prepare_gspan_graph_data(sel_train_graphs_data_path, train_graphs_filtered, obj_categories, rel_categories)
-        elif experiment['alg']=='subdue':
+        elif config['alg']=='subdue':
             prepare_subdue_graph_data(sel_train_graphs_data_path, train_graphs_filtered, obj_categories, rel_categories)
 
     # Mining of frequent graphs
-    if experiment['alg'] == 'gspan':
+    if config['alg'] == 'gspan':
         # Necessary because gspan program outputs with the same name of the input file
-        tmp_input = os.path.join(graph_mining_dir, exp_name+".data")
+        tmp_input = os.path.join(miningConf.graph_mining_dir, exp_name+".data")
         copyfile(sel_train_graphs_data_path, tmp_input)
-        run_gspan_mining(tmp_input, experiment['minsup'], sel_freq_graphs_path, obj_categories, rel_categories)
+        run_gspan_mining(tmp_input, config['minsup'], sel_freq_graphs_path, obj_categories, rel_categories)
         os.remove(tmp_input)
-    elif experiment['alg'] == 'subdue':
-        run_subdue_mining(sel_train_graphs_data_path, experiment['nsubs'], sel_freq_graphs_path, obj_categories, rel_categories)
+    elif config['alg'] == 'subdue':
+        run_subdue_mining(sel_train_graphs_data_path, config['nsubs'], sel_freq_graphs_path, obj_categories, rel_categories)
 
-def read_freqgraphs(experiment):
+def read_freqgraphs(miningConf):
     """
     Read Json frequent graphs generated with run_graph_mining()
-    :param experiment: experiment configuration for mining graphs
+    :param miningConf: experimental configuration class
     :return: loaded json frequent graphs
     """
-    exp_name = get_exp_name(experiment)
-
-    if experiment['dataset'] == 'COCO':
-        graph_mining_dir = COCO_graph_mining_dir
-    elif experiment['dataset'] == 'VG':
-        graph_mining_dir = VG_graph_mining_dir
+    exp_name = get_exp_name(miningConf)
 
     # Read frequent graphs
-    freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
+    freq_graphs_path = os.path.join(miningConf.graph_mining_dir, exp_name + '.json')
     with open(freq_graphs_path, 'r') as f:
         freq_graphs = json.load(f)
     return freq_graphs
 
-def analyze_graphs(experiment):
+def analyze_graphs(miningConf):
     """
     Compute statistics (avg. nodes, distinct classes, ...) on the extracted frequent subgraphs.
-    :param experiment: experiment configuration for mining graphs
+    :param miningConf: experimental configuration class
     :return: dictionary with statistics
     """
     # Read frequent graphs
-    freq_graphs = read_freqgraphs(experiment)
+    freq_graphs = read_freqgraphs(miningConf)
     dist_classes = {}
     dist_sets = {}
     tot_nodes = 0       # Number of nodes
@@ -190,11 +159,12 @@ def analyze_graphs(experiment):
         else:
             dist_sets[nodes_tuple] = 1
 
-    if 'minsup' not in experiment:
-        experiment['minsup'] = None
-    res_dict = {"Minsup":experiment['minsup'],
-                "Edge pruning": 'Y' if experiment['edge_pruning'] else 'N',
-                "Node pruning": 'Y' if experiment['node_pruning'] else 'N',
+    config = miningConf.config
+    if 'minsup' not in config:
+        config['minsup'] = None
+    res_dict = {"Minsup":config['minsup'],
+                "Edge pruning": 'Y' if config['edge_pruning'] else 'N',
+                "Node pruning": 'Y' if config['node_pruning'] else 'N',
                 "N. graphs": len(freq_graphs), "N. distinct classes": len(dist_classes),
                 "N. distinct class sets": len(dist_sets),
                 "Distinct set ratio": round(len(dist_sets)/len(freq_graphs), 3),
@@ -205,26 +175,21 @@ def analyze_graphs(experiment):
     return res_dict
 
 
-def print_graphs(experiment, subsample=True, pdfformat=True, alternate_colors=True):
+def print_graphs(miningConf, subsample=True, pdfformat=True, alternate_colors=True):
     """
     Print graphs to files
-    :param experiment: experiment configuration for mining graphs
+    :param miningConf: experimental configuration class
     :param subsample: subsample graphs if >500
     :param pdfformat: True to print pdf, False to print png
     :param alternate_colors: True if you want to alternate different colors for nodes
     """
-    exp_name = get_exp_name(experiment)
-    if experiment['dataset'] == 'COCO':
-        graph_mining_dir = COCO_graph_mining_dir
-    elif experiment['dataset'] == 'VG':
-        graph_mining_dir = VG_graph_mining_dir
-
+    exp_name = get_exp_name(miningConf)
     # Read
-    sel_freq_graphs_path = os.path.join(graph_mining_dir, exp_name + '.json')
+    sel_freq_graphs_path = os.path.join(miningConf.graph_mining_dir, exp_name + '.json')
     with open(sel_freq_graphs_path, 'r') as f:
         graphs = json.load(f)
 
-    out_path = os.path.join(graph_mining_dir, f"charts/{exp_name}")
+    out_path = os.path.join(miningConf.graph_mining_dir, f"charts/{exp_name}")
     if not os.path.exists(out_path):
         os.makedirs(out_path)
     # Subsampling of graphs

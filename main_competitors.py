@@ -1,11 +1,12 @@
 import cv2
 import os
-from config import COCO_img_train_dir
+from config import COCO_img_train_dir, train_graphs_subset_json_path
 import numpy as np
 from sklearn.cluster import KMeans
 from joblib import dump, load
 import pandas as pd
 from datetime import datetime
+import json
 from pyclustering.cluster.kmedoids import kmedoids
 competitors_dir = '../COCO/competitors/'
 
@@ -104,15 +105,24 @@ def compute_BOW_descriptors():
     print('Duration: ' + str(end_time - start_time))
 
 if __name__ == "__main__":
+    out_file = "centroids2.txt"
+
     # Feature extraction for each image
     #compute_BOW_descriptors()
 
     # Cluster images with kmedoids
     X = pd.read_csv(os.path.join(competitors_dir, "bow_images.pd"), index_col=0)
-    #X = np.load(os.path.join(competitors_dir, "bow_images.np"))[:10]
-    K = 10
+
+    # Select interesting images
+    with open(train_graphs_subset_json_path) as f:
+        graphs = json.load(f)
+    selected_names = [f"{g['graph']['name']:012d}.jpg" for g in graphs]
+    X = X.loc[selected_names]
+
+    K = 9
     km = kmedoids(X.to_numpy(), np.random.randint(0,len(X), K))
     start_time = datetime.now()
+    print("Start clustering process.")
     km.process()
     med = km.get_medoids()
     end_time = datetime.now()
@@ -123,7 +133,8 @@ if __name__ == "__main__":
         img = X.iloc[m].name
         images.append(img)
     print(images)
-    with open(os.path.join(competitors_dir, "centroids.txt"),'w') as f:
+
+    with open(os.path.join(competitors_dir, out_file),'w') as f:
         for el in images:
             f.write(el+",")
     print(len(X))

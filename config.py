@@ -36,6 +36,8 @@ Scene graphs
 """
 # Scene graphs of COCO train
 train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
+# Subset of scene graphs for Paper experiments
+train_graphs_subset_json_path = os.path.join(position_dataset_res_dir, 'train_graphs_subset.json')
 # Scene graphs of predictions (Deeplab + Matterport rcnn) in COCO val
 out_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
 # Scene graphs of VG train

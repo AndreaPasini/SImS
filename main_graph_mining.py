@@ -5,8 +5,14 @@ This file provides the code for TODO
 import io
 from datetime import datetime
 import pyximport
+pyximport.install(language_level=3)
 
-from config import COCO_graph_mining_dir
+from scipy.stats import entropy
+
+from config import COCO_graph_mining_dir, train_graphs_json_path, train_graphs_subset_json_path, kb_dir, \
+    kb_pairwise_json_path
+from semantic_analysis.datasets import MiningConf
+from semantic_analysis.knowledge_base import filter_kb_histograms
 
 pyximport.install(language_level=3)
 from semantic_analysis.conceptnet.places import Conceptnet
@@ -22,21 +28,60 @@ import os
 import sys
 
 
+
+
+def filter_COCO_paper_experiment():
+
+    with open(kb_pairwise_json_path, 'r') as f:
+        kb = json.load(f)
+
+    kb = filter_kb_histograms(kb, 64, entropy([1/3,1/3,1/3]))
+    kb2 = {}
+    for k,v in kb.items():
+        kb2[k]=v['sup']
+
+    print("Selecting COCO subset for article...")
+    # Read COCO Train graphs
+    with open(train_graphs_json_path, 'r') as f:
+        train_graphs = json.load(f)
+
+    categories = [{'river'}, {'surfboard'}, {'clock'}, {'book'}]
+    graphs = [[] for el in categories]
+    for g in train_graphs:
+        labels = {node['label'] for node in g['nodes']}
+        for i, cat in enumerate(categories):
+            if cat.issubset(labels):
+                graphs[i].append(g)
+                break
+
+    all_graphs = []
+    for el in graphs:
+        all_graphs.extend(el)
+    with open(train_graphs_subset_json_path, 'w') as f:
+        json.dump(all_graphs, f)
+    print("Done.")
+
+
 def main():
     ### Choose methods to be run ###
     class RUN_CONFIG:
-        graph_mining = False            # Mining of frequent graphs with Gspan or Subdue (may take minutes or hours)
-        analyze_freq_graphs = True
+        graph_mining = True            # Mining of frequent graphs with Gspan or Subdue (may take minutes or hours)
+        analyze_freq_graphs = False      # Plot table with statistics for the different methods
         compute_image_freqgraph_count_mat = False   # Associate training COCO images to frequent graphs (7 minutes)
         compute_freqgraph_place_count_mat = False   # Associate frequent graphs to places
         compute_image_place_count_mat = False    # Associate training COCO images to places
-        print_graphs = False
+        print_graphs = True
 
         associate_to_freq_graphs = False
 
+        # Experiment configuration
         experiment = 6 # Index of the experiment configuration to be run (if not specified as command-line argument)
-        #dataset = 'COCO'
-        dataset = 'VG'
+        # Choose a dataset:
+        dataset = 'COCO'
+        # dataset = 'VG'
+        # Choose options:
+        dataset_info = 'COCO_subset' # Experiment with only 4 COCO scenes (for paper comparisons)
+        #dataset_info = None # No other options, keep dataset as it is
 
     # Experiment configuration
     experiments = [{'alg':'gspan', 'edge_pruning':True, 'node_pruning':False, 'minsup':0.1},  #0) 5s
@@ -59,13 +104,20 @@ def main():
         exp = RUN_CONFIG.experiment
     else:
         exp = int(sys.argv[1])
+
+    # Setup configuration attributes
     experiment = experiments[exp]
     experiment['dataset'] = RUN_CONFIG.dataset
+    experiment['dataset_info'] = RUN_CONFIG.dataset_info
 
     if RUN_CONFIG.graph_mining:
+        if experiment['dataset_info'] == 'COCO_subset':
+            filter_COCO_paper_experiment()
+
         print(f"Selected experiment: {experiments[exp]}")
         start_time = datetime.now()
-        run_graph_mining(experiment)
+        miningConf = MiningConf(experiment)
+        run_graph_mining(miningConf)
         end_time = datetime.now()
         print('Duration: ' + str(end_time - start_time))
     if RUN_CONFIG.analyze_freq_graphs:
@@ -78,7 +130,9 @@ def main():
         for exp in exp_list:
             experiment = experiments[exp]
             experiment['dataset']=RUN_CONFIG.dataset
-            res = analyze_graphs(experiment)
+            experiment['dataset_info'] = RUN_CONFIG.dataset_info
+            miningConf = MiningConf(experiment)
+            res = analyze_graphs(miningConf)
             results.append(res)
         print("Graph mining statistics.")
         res_df = pd.DataFrame(results, columns=["Minsup","Edge pruning","Node pruning","N. graphs",
@@ -109,11 +163,12 @@ def main():
         print('Duration: ' + str(end_time - start_time))
 
     if RUN_CONFIG.print_graphs:
+        miningConf = MiningConf(experiment)
         print(f"Selected experiment: {experiments[exp]}")
         # Print graphs to file
-        # print_graphs(experiment, subsample = [154, 155, 784, 786]) # for article images (issues of graph mining), exp=11
-        # print_graphs(experiment, subsample=list(range(1100, 1190)))
-        print_graphs(experiment)
+        # print_graphs(miningConf, subsample = [154, 155, 784, 786]) # for article images (issues of graph mining), exp=11
+        # print_graphs(miningConf, subsample=list(range(1100, 1190)))
+        print_graphs(miningConf)
 
 
 

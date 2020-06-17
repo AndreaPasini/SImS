@@ -14,6 +14,6 @@ Description of the program entry points:
   - Apply frequent subgraph mining to the scene graphs, to derive the Scene Graph Summary (SGS)
   - Reproduce the different experimental configuration provided in our white paper
   
-  The position dataset and the generated summaries for COCO dataset can be found at:
-  http:\\xxx\xxx
+  Our labeled COCO subset for training the relative position classifier and the generated summaries can be found at:
+  https://drive.google.com/file/d/1qZNZyAgGWkUrzFrpZaOn9-tEYWZKPo-u/view?usp=sharing
 

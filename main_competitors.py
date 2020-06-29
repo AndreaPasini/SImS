@@ -1,6 +1,6 @@
 import cv2
 import os
-from config import COCO_img_train_dir, train_graphs_subset_json_path
+from config import COCO_img_train_dir, COCO_train_graphs_subset_json_path
 import numpy as np
 from sklearn.cluster import KMeans
 from joblib import dump, load
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     X = pd.read_csv(os.path.join(competitors_dir, "bow_images.pd"), index_col=0)
 
     # Select interesting images
-    with open(train_graphs_subset_json_path) as f:
+    with open(COCO_train_graphs_subset_json_path) as f:
         graphs = json.load(f)
     selected_names = [f"{g['graph']['name']:012d}.jpg" for g in graphs]
     X = X.loc[selected_names]

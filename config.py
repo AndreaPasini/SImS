@@ -17,7 +17,7 @@ VG_predicates_json_path = os.path.join(VG_dir, "predicates.json")
 VG_objects_json_path = os.path.join(VG_dir, "objects.json")
 
 """
-Position classifier
+Position classifier (COCO)
 """
 position_dataset_dir = os.path.join(COCO_dir, 'positionDataset/')
 position_dataset_res_dir = os.path.join(position_dataset_dir, 'results/')
@@ -32,30 +32,30 @@ out_panoptic_json_path = os.path.join(out_panoptic_dir, 'panoptic.json') # Outpu
 pq_info_path = os.path.join(out_panoptic_dir, 'panoptic_quality.json') # Panoptic quality of all objects in predictions
 
 """
-Scene graphs
+Scene graphs extracted from COCO and VG
 """
 # Scene graphs of COCO train
-train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
+COCO_train_graphs_json_path = os.path.join(position_dataset_res_dir, 'train_graphs.json')
 # Subset of scene graphs for Paper experiments
-train_graphs_subset_json_path = os.path.join(position_dataset_res_dir, 'train_graphs_subset.json')
+COCO_train_graphs_subset_json_path = os.path.join(position_dataset_res_dir, 'train_graphs_subset.json')
 # Scene graphs of predictions (Deeplab + Matterport rcnn) in COCO val
-out_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
+COCO_panoptic_val_graphs_json_path = os.path.join(position_dataset_res_dir, 'panopt_val_graphs.json')
 # Scene graphs of VG train
 VG_train_graphs_json_path = os.path.join(VG_dir, 'train_graphs.json')
 
 """
-Knowledge base
+Pairwise Relationship Summary (PRS)
 """
-kb_dir = os.path.join(COCO_dir, 'kb/')
-VG_kb_dir = os.path.join(VG_dir, 'kb/')
-kb_pairwise_json_path = os.path.join(kb_dir, 'PRKB.json') # KB extracted from Validation Images (COCO)
-VG_kb_pairwise_json_path = os.path.join(VG_kb_dir, 'PRKB.json') # PRKB extracted from VG train
+COCO_PRS_dir = os.path.join(COCO_dir, 'PRS/')
+VG_PRS_dir = os.path.join(VG_dir, 'PRS/')
+COCO_PRS_json_path = os.path.join(COCO_PRS_dir, 'PRS.json') # PRS extracted from Validation Images (COCO)
+VG_PRS_json_path = os.path.join(VG_PRS_dir, 'PRS.json') # PRS extracted from VG train
 
 """
-Graph mining
+SGS (Scene Graph Summary) generation, with graph mining
 """
-COCO_graph_mining_dir = os.path.join(COCO_dir, 'gmining')
-VG_graph_mining_dir = os.path.join(VG_dir, 'gmining')
+COCO_SGS_dir = os.path.join(COCO_dir, 'SGS')
+VG_SGS_dir = os.path.join(VG_dir, 'SGS')
 """
 Conceptnet
 """

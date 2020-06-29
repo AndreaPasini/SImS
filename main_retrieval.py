@@ -1,12 +1,10 @@
 import json
-import os
 from scipy.stats import entropy
 import pyximport
 pyximport.install(language_level=3)
-from config import train_graphs_json_path, COCO_img_val_dir, out_panoptic_val_graphs_json_path
-from config import COCO_img_train_dir, COCO_ann_train_dir, kb_pairwise_json_path
-from image_analysis.ImageProcessing import getImageName
-from semantic_analysis.knowledge_base import filter_kb_histograms, get_sup_ent_lists
+from config import COCO_panoptic_val_graphs_json_path
+from config import COCO_PRS_json_path
+from sims.prs import filter_PRS_histograms, get_sup_ent_lists
 from tqdm import tqdm
 def get_positive_relationships(graph, kb):
     rel_list = []
@@ -87,9 +85,9 @@ def get_neighbors(val_graphs, filtered_kb, selected):
 
 if __name__ == "__main__":
 
-    with open(kb_pairwise_json_path, 'r') as f:
+    with open(COCO_PRS_json_path, 'r') as f:
         json_data = json.load(f)
-    with open(out_panoptic_val_graphs_json_path, "r") as f:
+    with open(COCO_panoptic_val_graphs_json_path, "r") as f:
         val_graphs = json.load(f)
 
 
@@ -98,7 +96,7 @@ if __name__ == "__main__":
 
     entr3 = entropy([1 / 3, 1 / 3, 1 / 3])
     minsup = 64
-    filtered_kb = filter_kb_histograms(json_data, minsup, entr3)
+    filtered_kb = filter_PRS_histograms(json_data, minsup, entr3)
     sup_filtered, ent_filtered = get_sup_ent_lists(filtered_kb)
 
     ranks=[]

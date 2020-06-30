@@ -17,7 +17,7 @@ Description of the program entry points:
   - Reproduce the different experimental configuration provided in our white paper
   - Show frequent graphs with charts
   
-  **main_sims**
+  **main_sims.py**
   - The complete SImS pipeline (designed for COCO, but with minor changes can be applied to other datasets), including scene graph computation, PRS and SGS building.
   
   Our labeled COCO subset for training the relative position classifier and the generated summaries can be found at:

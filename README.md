@@ -20,6 +20,9 @@ Description of the program entry points:
   **main_sims.py**
   - The complete SImS pipeline (designed for COCO, but with minor changes can be applied to other datasets), including scene graph computation, PRS and SGS building.
   
+  **main_competitors.py**
+  - This file provides the implementation of the KMedoids technique, used as baseline.
+  
   Our labeled COCO subset for training the relative position classifier and the generated summaries can be found at:
   https://drive.google.com/file/d/1qZNZyAgGWkUrzFrpZaOn9-tEYWZKPo-u/view?usp=sharing
 

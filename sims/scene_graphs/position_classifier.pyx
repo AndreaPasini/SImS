@@ -16,7 +16,7 @@ from os import listdir
 import networkx as nx
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_recall_fscore_support, confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import LeaveOneOut, cross_val_predict, GridSearchCV
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -39,7 +39,7 @@ def __getClassifiersGridSearch():
     param_svc = {'gamma': ['auto']}
     param_dtree = {'max_depth': [5, 10, 15, 20, 25, 30, 35]}
     param_rforest = {'max_depth': [5, 10, 15, 20, 25, 30, 35],
-                     'n_estimators': [10, 15, 20, 25, 30, 35, 40, 45, 50]}  # ,60,80,100] }
+                     'n_estimators': [10, 15, 20, 25, 30, 35, 40, 45, 50, 100, 250, 500]}  # ,60,80,100] }
 
     classifiers = [("KNN", KNeighborsClassifier(), param_knn),
                    ("RBF-SVC", SVC(), param_svc),
@@ -116,10 +116,14 @@ def validate_classifiers_grid_search(output_path):
     F1_df = pd.DataFrame()  # F1 scores, separately for each class and classifier
     cv = LeaveOneOut()
     classifiers = __getClassifiersGridSearch()
+    
+    labels = sorted(list(set(y)))
+    index = []
+    data = []
     try:
         for clf_name, clf, params in classifiers:
             print(clf_name)
-            gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params)
+            gridSearch = GridSearchCV(cv=10, scoring='f1_macro', estimator=clf, param_grid=params, n_jobs=-1)
             gridSearch.fit(X, y)
             print(f"- {clf_name}, F1: {gridSearch.best_score_:.3f}")
             print(gridSearch.best_params_)
@@ -127,19 +131,35 @@ def validate_classifiers_grid_search(output_path):
             # Get best classifier from grid search
             best_clf = gridSearch.best_estimator_
             # Use leave-one out for printing its final evaluation
-            y_pred = cross_val_predict(best_clf, X, y, cv=cv)
-            F1_df = __getClassF1_df(y, y_pred, clf_name, F1_df)
+            y_pred = cross_val_predict(best_clf, X, y, cv=cv, n_jobs=-1)
+            
+            f1_macro = f1_score(y, y_pred, average="macro")
+            prec_macro = precision_score(y, y_pred, average="macro")
+            rec_macro = recall_score(y, y_pred, average="macro")
+            
+            f1 = f1_score(y, y_pred, average=None, labels=labels)
+            prec = precision_score(y, y_pred, average=None, labels=labels)
+            rec = recall_score(y, y_pred, average=None, labels=labels)
+            
+            data.append(f1.tolist() + prec.tolist() + rec.tolist() + [f1_macro, prec_macro, rec_macro])
+            print(clf_name, data[-1])
+            index.append(clf_name)
+            
+#             F1_df = __getClassF1_df(y, y_pred, clf_name, F1_df)
 
-            f1_macro = F1_df.tail().mean(axis=1).get(key=clf_name)
-            __save_confusion_matrix(y, y_pred, clf_name, f1_macro, os.path.join(position_dataset_res_dir, clf_name + ".eps"))
+#             f1_macro = F1_df.tail().mean(axis=1).get(key=clf_name)
+#             __save_confusion_matrix(y, y_pred, clf_name, f1_macro, os.path.join(position_dataset_res_dir, clf_name + ".eps"))
 
-        # Save results to file:
-        F1_df['macro-average'] = F1_df.mean(axis=1)
-        print(F1_df.head().to_string())
-        resultFile = open(output_path, "w+")
-        resultFile.writelines('F1 Score\n\n')
-        resultFile.writelines(F1_df.head().to_string())
-        resultFile.close()
+        df = pd.DataFrame(data, columns=[ f"{metr} {lab}" for metr in ["f1", "precision", "recall"] for lab in labels] + ["macro f1", "macro precision", "macro recall"], index=index)
+        df.to_csv(output_path, index_label="clf")
+
+#         # Save results to file:
+#         F1_df['macro-average'] = F1_df.mean(axis=1)
+#         print(F1_df.head().to_string())
+#         resultFile = open(output_path, "w+")
+#         resultFile.writelines('F1 Score\n\n')
+#         resultFile.writelines(F1_df.head().to_string())
+#         resultFile.close()
 
     except ValueError as e:
         print(e)
@@ -201,6 +221,8 @@ def image2scene_graph(image_name, image_id, segments_info, cat_info, annot_folde
         prediction = model.predict([np.asarray(featuresRow[3:])])[0]
         g.add_edge(s, r, pos=prediction)
     return g
+
+    return id_dict, annot_dict, cat_dict
 
 def create_scene_graphs(fileModel_path, COCO_json_path, COCO_ann_dir, out_graphs_json_path):
     """

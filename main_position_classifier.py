@@ -15,10 +15,10 @@ from config import position_classifier_path, position_dataset_res_dir
 ### Choose methods to be run ###
 class RUN_CONFIG:
     validate_classifiers = False    # Run cross-validation for relative-position classifiers
-    build_final_model = False       # Build relative-position classifier, final model
+    build_final_model = True        # Build relative-position classifier, final model
 
     # Choose a model for building the final position classifier (used by build_final_model)
-    final_classifier = RandomForestClassifier(max_depth=10, n_estimators=35)  # Best model selected by grid-search
+    final_classifier = RandomForestClassifier(max_depth=20, n_estimators=100, n_jobs=-1)  # Best model selected by grid-search
 
 
 if __name__ == "__main__":
